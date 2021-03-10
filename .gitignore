@@ -1,0 +1,6 @@
+.env
+.make
+.terraform
+frontend/dist
+node_modules
+terraform.tfstate*
