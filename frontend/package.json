@@ -1,5 +1,6 @@
 {
   "name": "dbp-etl",
+  "version": "0.0.5",
   "license": "UNLICENSED",
   "scripts": {
     "start": "webpack serve",

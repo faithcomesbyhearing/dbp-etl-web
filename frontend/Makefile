@@ -13,9 +13,9 @@ ORIGIN_BUCKET := ...
 
 .PHONY: sync
 sync: dist
-> aws s3 sync dist s3://$(ORIGIN_BUCKET) --delete
-> aws cloudfront create-invalidation --distribution-id '$(DISTRIBUTION_ID)' --paths '/*'
-> aws cloudfront get-distribution --id '$(DISTRIBUTION_ID)' | jq -r '.Distribution.DomainName'
+> aws s3 rm s3://$(ORIGIN_BUCKET) --recursive
+> aws s3 cp dist/main.*.js s3://$(ORIGIN_BUCKET) --cache-control 'public, max-age=604800, immutable'
+> aws s3 cp dist/index.html s3://$(ORIGIN_BUCKET) --cache-control 'no-store, max-age=0'
 
 .PHONY: clean
 clean:

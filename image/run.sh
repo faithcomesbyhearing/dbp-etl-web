@@ -4,6 +4,13 @@ set -eu
 finish() { echo EXECUTION FINISHED; }
 trap finish EXIT
 
+mkdir ~/.aws
+cat > /root/.aws/credentials <<EOF
+[dbs]
+aws_access_key_id = ${DBS_AWS_ACCESS_KEY_ID}
+aws_secret_access_key = ${DBS_AWS_SECRET_ACCESS_KEY}
+EOF
+
 cat > /root/dbp-etl.cfg <<EOF
 [DEFAULT]
 database.user = ${DATABASE_USER}
@@ -15,6 +22,7 @@ publisher.js = /app/BiblePublisher/publish/Publisher.js
 s3.bucket = ${S3_BUCKET}
 s3.vid_bucket = ${S3_VID_BUCKET}
 s3.artifacts_bucket = ${S3_ARTIFACTS_BUCKET}
+s3.aws_profile = dbs
 directory.upload_aws = /app/etl_uploader/upload_aws/
 directory.upload = /app/etl_uploader/upload/
 directory.database = /app/etl_uploader/database/

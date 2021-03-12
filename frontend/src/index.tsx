@@ -18,6 +18,7 @@ function App() {
     <MemoryRouter>
       <div>
         <h1>DBP-ETL</h1>
+        <p>v{process.env.VERSION}</p>
         <nav>
           <Link to={{ pathname: "/", key: `${Math.random()}` }}>Upload</Link>
           {" | "}
@@ -111,7 +112,7 @@ function Artifacts() {
           {" "}
           Page {page}
           {" "}
-          <button onClick={() => setPage(Math.min(Math.round((state.value?.length || 0) / 10), page + 1))}>Next</button>
+          <button onClick={() => setPage(Math.min(Math.ceil((state.value?.length || 1) / 10), page + 1))}>Next</button>
           <ul>
             {state.value
               ?.reverse()
@@ -168,7 +169,7 @@ function ArtifactFolder({ uploadKey }: { uploadKey: string }) {
       logsClient
         .send(
           new GetLogEventsCommand({
-            logGroupName: "/ecs/dbp-etl",
+            logGroupName: `/ecs/${process.env.ECS_CLUSTER}`,
             logStreamName: `dbp-etl/dbp-etl/${metadata.taskid}`,
           })
         )
@@ -242,7 +243,6 @@ function Upload() {
     []
   );
   const [files, setFiles] = useState<FileWithPath[]>([]);
-  const [prefix, setPrefix] = useState("");
   const [uploadingMessage, setUploadingMessage] = useState("");
   const [error, setError] = useState("");
   const [validations, setValidations] = useState<string[]>([]);
@@ -250,7 +250,6 @@ function Upload() {
   const params = useParams<{ uploadKey: string }>();
 
   useEffect(() => {
-    console.log('uploadKey', params.uploadKey);
     if (params.uploadKey) {
       (async () => {
         try {
@@ -269,14 +268,13 @@ function Upload() {
 
   function clear() {
     setFiles([]);
-    setPrefix("");
     setValidations([]);
   }
 
   async function upload() {
     try {
       setUploading(true);
-      const uploadKey = await uploadFiles(files, prefix, setUploadingMessage);
+      const uploadKey = await uploadFiles(files, setUploadingMessage);
       setUploading(false);
       setShowResults(true);
       for await (const [status, logs] of runTask(uploadKey)) {
@@ -297,27 +295,11 @@ function Upload() {
         }
       }
       if (acceptedFiles.length > 0) {
-        const prefix = acceptedFiles
-          .map((x) =>
-            x
-              .path!.split("/")
-              .slice(0, -1)
-              .filter((x) => x)
-              .join("/")
-          )
-          .reduce((a: string, b: string) => {
-            for (let i = a.length; i > 0; i--) {
-              if (a.substring(0, i) === b.substring(0, i)) {
-                return a.substring(0, i);
-              }
-            }
-            return "";
-          });
-        setPrefix(prefix);
+        const commonPath = findCommonPath(acceptedFiles);
         setValidations(["Validating..."]);
-        validate(prefix).then((validations) => {
+        validate(commonPath).then((validations) => {
           if (validations.length > 0) {
-            setValidations(validations.map(validation => `${prefix} ${validation}`))
+            setValidations(validations.map(validation => `${commonPath} ${validation}`))
           } else {
             setValidations(["Passed Validation"]);
           }
@@ -369,15 +351,11 @@ function Upload() {
         />
         <p>{isDragActive ? "Drop here" : "Drag here"}</p>
       </div>
-      <label>
-        Prefix: upload_aws/
-        <input value={prefix} onChange={(e) => setPrefix(e.target.value)} />
-      </label>
       <details>
         <summary>{files.length} Files</summary>
         <ul>
           {files.map((file) => (
-            <li key={file.name}>{file.name}</li>
+            <li key={file.path}>{file.path}</li>
           ))}
         </ul>
       </details>
@@ -391,19 +369,38 @@ function Upload() {
       <button disabled={!(files.length > 0)} onClick={clear}>
         Clear
       </button>
-      <button disabled={!(files.length > 0 && prefix)} onClick={upload}>
+      <button disabled={!(files.length > 0)} onClick={upload}>
         Upload
       </button>
     </div>
   );
 }
 
+function findCommonPath(acceptedFiles: FileWithPath[]) {
+  return acceptedFiles
+    .map((x) =>
+      x
+        .path!.split("/")
+        .slice(0, -1)
+        .filter((x) => x)
+        .join("/")
+    )
+    .reduce((a: string, b: string) => {
+      for (let i = a.length; i > 0; i--) {
+        if (a.substring(0, i) === b.substring(0, i)) {
+          return a.substring(0, i);
+        }
+      }
+      return "";
+    });
+}
+
 async function* runTask(uploadKey: string) {
   const task = (
     await ecsClient.send(
       new RunTaskCommand({
-        cluster: "dbp",
-        taskDefinition: "dbp-etl",
+        cluster: process.env.ECS_CLUSTER,
+        taskDefinition: process.env.ECS_TASK,
         launchType: "FARGATE",
         platformVersion: "1.4.0",
         networkConfiguration: {
@@ -430,7 +427,7 @@ async function* runTask(uploadKey: string) {
     )
   ).tasks![0];
 
-  const taskId = task.taskArn!.match(/task\/dbp\/(.+)$/)![1];
+  const taskId = task.taskArn!.match(/task\/.+\/(.+)$/)![1];
 
   await updateMetadata(uploadKey, { taskid: taskId });
 
@@ -438,7 +435,7 @@ async function* runTask(uploadKey: string) {
     const status = (
       await ecsClient.send(
         new DescribeTasksCommand({
-          cluster: "dbp",
+          cluster: process.env.ECS_CLUSTER,
           tasks: [task.taskArn!],
         })
       )
@@ -450,7 +447,7 @@ async function* runTask(uploadKey: string) {
       try {
         const { events } = await logsClient.send(
           new GetLogEventsCommand({
-            logGroupName: "/ecs/dbp-etl",
+            logGroupName: `/ecs/${process.env.ECS_CLUSTER}`,
             logStreamName: `dbp-etl/dbp-etl/${taskId}`,
           })
         );
@@ -506,7 +503,6 @@ async function getArtifacts(uploadKey: string) {
 
 async function uploadFiles(
   files: FileWithPath[],
-  path: string,
   setUploadingMessage: (uploadingMessage: string) => void
 ): Promise<string> {
   // %Y-%m-%d-%H-%M-%S
@@ -518,13 +514,17 @@ async function uploadFiles(
   let remaining = files.length;
   setUploadingMessage(`Uploading ${remaining} files`);
 
+  if (files.some(file => !file.path || !file.path.startsWith('/'))) {
+    throw new Error('File paths must start /. Did you drag and drop a folder?');
+  }
+
   await Promise.all(
     files.map(async (file) => {
       const upload = new S3Upload({
         client: s3Client,
         params: {
           Bucket: process.env.UPLOAD_BUCKET,
-          Key: `${uploadKey}/${path}/${file.name}`,
+          Key: `${uploadKey}${file.path}`,
           Body: file,
         },
       });
@@ -545,6 +545,7 @@ async function uploadFiles(
 
   setUploadingMessage(`Finished Uploading`);
 
+  const path = findCommonPath(files);
   await updateMetadata(uploadKey, { path, user: await getUserEmail() }, true);
   return uploadKey;
 }

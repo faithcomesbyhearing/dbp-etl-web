@@ -50,7 +50,10 @@ export default (environment: { production: boolean }): Configuration => ({
     ],
   },
   plugins: [
-    new EnvironmentPlugin({ DEBUG: !environment.production }),
+    new EnvironmentPlugin({
+      DEBUG: !environment.production,
+      VERSION: require("./package.json").version,
+    }),
     new DotenvWebpackPlugin({ safe: true }),
     new CleanWebpackPlugin(),
     new HtmlWebpackPlugin({
