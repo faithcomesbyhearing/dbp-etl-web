@@ -18,10 +18,6 @@ RUN apk add aws-cli ffmpeg mysql-client nodejs py3-boto3 py3-pymysql python3
 
 COPY --from=BiblePublisher /app/BiblePublisher ./BiblePublisher
 
-RUN mkdir etl_uploader
-RUN for d in accepted complete database duplicate errors quarantine transcoded upload; do mkdir etl_uploader/$d; done
-RUN touch etl_uploader/AcceptErrors.txt
-
 COPY dbp-etl .
 
 COPY run.sh .
