@@ -4,6 +4,7 @@ WORKDIR /app
 
 RUN apk update
 RUN apk add g++ gcc git make musl-dev npm python2
+ADD https://api.github.com/repos/garygriswold/BiblePublisher/git/refs/heads/master version.json
 RUN git clone https://github.com/garygriswold/BiblePublisher
 RUN cd BiblePublisher; npm i sqlite3
 
