@@ -115,7 +115,7 @@ function Artifacts() {
           <button onClick={() => setPage(Math.min(Math.ceil((state.value?.length || 1) / 10), page + 1))}>Next</button>
           <ul>
             {state.value
-              ?.reverse()
+              ?.slice().reverse()
               .slice((page - 1) * 10, page * 10)
               .map((key: string) => (
                 <ArtifactFolder key={key} uploadKey={key} />
@@ -190,8 +190,8 @@ function ArtifactFolder({ uploadKey }: { uploadKey: string }) {
           {metadata === undefined && ' Loading...'}
           {metadata === null && ' Missing metadata'}
           {metadata?.status && ` (${metadata?.status})`}
-          {metadata?.path && (<><br />Path: {metadata?.path}</>)}
-          {metadata?.user && (<><br />User: {metadata?.user}</>)}
+          {metadata?.path && (<><br />&emsp;Path: {metadata?.path}</>)}
+          {metadata?.user && (<><br />&emsp;User: {metadata?.user}</>)}
         </summary>
         <dl>
           <dt>Artifacts</dt>
@@ -229,6 +229,7 @@ function ArtifactFolder({ uploadKey }: { uploadKey: string }) {
             </details>
           </>
         )}
+        <br />
       </details>
     </li>
   );
