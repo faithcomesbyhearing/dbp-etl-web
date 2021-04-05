@@ -182,11 +182,14 @@ function ArtifactFolder({ uploadKey }: { uploadKey: string }) {
     history.push(`/retry/${uploadKey}`);
   }
 
+  const [year, month, day, hour, minute, second] = uploadKey.split('-');
+  const date = new Date(`${year}-${month}-${day}T${hour}:${minute}:${second}Z`);
+
   return (
     <li>
       <details onToggle={toggle}>
         <summary>
-          {uploadKey}
+          {date.toLocaleString()}
           {metadata === undefined && ' Loading...'}
           {metadata === null && ' Missing metadata'}
           {metadata?.status && ` (${metadata?.status})`}
@@ -453,8 +456,12 @@ async function* runTask(uploadKey: string) {
           })
         );
         const logs = events!.map((event) => event.message).join("\n");
-        yield [status, logs];
-        if (logs.includes("EXECUTION FINISHED")) return;
+        if (logs.includes("EXECUTION FINISHED")) {
+          yield ["STOPPED", logs];
+          return;
+        } else {
+          yield [status, logs];
+        }
       } catch (e) {
         console.error(e);
         yield [status, ""];
