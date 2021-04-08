@@ -14,7 +14,9 @@ The `distribution_id` and `origin_bucket` output variables need to be placed in 
 
 ### Image
 
-The `image/Makefile` file is used to build the `dbp-etl` Docker image and push it to ECR. This depends on the `ecr_url` variable from Terraform.
+The [`image/Makefile`](./image/Makefile) file is used to build the `dbp-etl` Docker image and push it to ECR. This depends on the `ecr_url` variable from Terraform. Currently, the two environments' (Dev and Newdata) ECR URLs are in the `Makefile`, so you can uncomment one of them and run the script to push them. Alternatively, you can run the `aws ecr get-login-password` and `docker build`, `tag`, and `push` commands manually.
+
+This image will use the Git submodule in `image/dbp-etl`, so ensure it's code has been updated in that submodule or commit your changes and pull them into the submodule with `git submodule update`.
 
 ## Validate Lambda
 
