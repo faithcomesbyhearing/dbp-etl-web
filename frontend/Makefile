@@ -8,8 +8,13 @@ node_modules: package.json
 > npm install
 > touch -c $@
 
-DISTRIBUTION_ID := ...
-ORIGIN_BUCKET := ...
+# DEV
+# DISTRIBUTION_ID := E253B8YKTMDS2Q
+# ORIGIN_BUCKET := dbp-etl-origin-dev-zrg0q2rhv7shv7hr
+
+# NEWDATA
+# DISTRIBUTION_ID := ELSN9V9QXE94I
+# ORIGIN_BUCKET := dbp-etl-origin-newdata-fiu49s0cnup1yr0q
 
 .PHONY: sync
 sync: dist
