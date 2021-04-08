@@ -12,8 +12,8 @@ if [ -n "${DBS_AWS_ACCESS_KEY_ID:-}" ] && [ -n "${DBS_AWS_SECRET_ACCESS_KEY:-}" 
   mkdir ~/.aws
   cat > /root/.aws/credentials <<EOF
 [dbs]
-aws_access_key_id = ${DBS_AWS_ACCESS_KEY_ID}
-aws_secret_access_key = ${DBS_AWS_SECRET_ACCESS_KEY}
+aws_access_key_id=${DBS_AWS_ACCESS_KEY_ID}
+aws_secret_access_key=${DBS_AWS_SECRET_ACCESS_KEY}
 EOF
 fi
 
