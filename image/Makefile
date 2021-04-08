@@ -1,6 +1,10 @@
 include ../boilerplate.mk
 
-ECR_URL := ...
+# DEV
+# ECR_URL := 078432969830.dkr.ecr.us-west-2.amazonaws.com/dbp-etl-dev-zrg0q2rhv7shv7hr
+
+# NEWDATA
+# ECR_URL := 078432969830.dkr.ecr.us-west-2.amazonaws.com/dbp-etl-newdata-fiu49s0cnup1yr0q
 
 .PHONY: image
 image:
