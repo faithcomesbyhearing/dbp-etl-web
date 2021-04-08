@@ -4,10 +4,12 @@ import { DescribeTasksCommand, RunTaskCommand } from "@aws-sdk/client-ecs";
 import { InvokeCommand } from '@aws-sdk/client-lambda';
 import { GetObjectCommand, ListObjectsV2Command, PutObjectCommand } from "@aws-sdk/client-s3";
 import { Upload as S3Upload } from "@aws-sdk/lib-storage";
-import { SyntheticEvent, useEffect, useState } from "react";
+import { Suspense, SyntheticEvent, useEffect, useState } from "react";
 import { render } from "react-dom";
 import { DropzoneInputProps, FileWithPath, useDropzone } from "react-dropzone";
+import { ErrorBoundary } from 'react-error-boundary';
 import { Link, MemoryRouter, Route, Switch, useHistory, useParams } from "react-router-dom";
+import { RecoilRoot } from 'recoil';
 import { ecsClient, getSignedUrl, getUserEmail, lambdaClient, logsClient, s3Client } from "./aws";
 import { useAsync } from "./hooks";
 
@@ -15,37 +17,49 @@ render(<App />, document.getElementById("app"));
 
 function App() {
   return (
-    <MemoryRouter>
-      <div>
-        <h1>DBP-ETL</h1>
-        <p>v{process.env.VERSION}</p>
-        <nav>
-          <Link to={{ pathname: "/", key: `${Math.random()}` }}>Upload</Link>
-          {" | "}
-          <Link to="/artifacts">Artifacts</Link>
-          {" | "}
-          <Link to={{ pathname: "/lpts" }}>LPTS</Link>
-          {" | "}
-          <button onClick={() => Auth.signOut()}>Sign Out</button>
-        </nav>
-        <Switch>
-          <Route path="/artifacts">
-            <Artifacts />
-          </Route>
-          <Route
-            path="/retry/:uploadKey"
-            render={({ location }) => <Upload key={location.key} />}
-          />
-          <Route path="/lpts">
-            <LPTS />
-          </Route>
-          <Route
-            path="/"
-            render={({ location }) => <Upload key={location.key} />}
-          />
-        </Switch>
-      </div>
-    </MemoryRouter>
+    <ErrorBoundary fallbackRender={({ error, resetErrorBoundary }) => {
+      return (<>
+        <h3>An error has occured</h3>
+        <button onClick={() => resetErrorBoundary()}>Retry</button>
+        <pre>{error.stack}</pre>
+      </>);
+    }}>
+      <RecoilRoot>
+        <MemoryRouter>
+          <Suspense fallback={"Loading..."}>
+            <div>
+              <h1>DBP-ETL</h1>
+              <p>v{process.env.VERSION}</p>
+              <nav>
+                <Link to={{ pathname: "/", key: `${Math.random()}` }}>Upload</Link>
+                {" | "}
+                <Link to="/artifacts">Artifacts</Link>
+                {" | "}
+                <Link to={{ pathname: "/lpts" }}>LPTS</Link>
+                {" | "}
+                <button onClick={() => Auth.signOut()}>Sign Out</button>
+              </nav>
+              <Switch>
+                <Route path="/artifacts">
+                  <Artifacts />
+                </Route>
+                <Route
+                  path="/retry/:uploadKey"
+                  render={({ location }) => <Upload key={location.key} />}
+                />
+                <Route path="/lpts">
+                  <LPTS />
+                </Route>
+                <Route
+                  path="/"
+                  render={({ location }) => <Upload key={location.key} />}
+                />
+              </Switch>
+            </div>
+          </Suspense>
+        </MemoryRouter>
+      </RecoilRoot>
+    </ErrorBoundary>
   );
 }
 
@@ -538,7 +552,7 @@ async function uploadFiles(
       });
       upload.on("httpUploadProgress", (progress) => {
         setUploadingMessage(
-          `Uploading ${remaining} files (${file.name}... (${(progress.loaded! / progress.total!) * 100}%))`
+          `Uploading ${remaining} files (${file.name}... (${Math.round((progress.loaded! / progress.total!) * 100)}%))`
         );
       });
       try {

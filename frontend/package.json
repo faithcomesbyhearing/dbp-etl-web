@@ -15,7 +15,6 @@
     "@babel/preset-typescript": "7",
     "@tsconfig/recommended": "1",
     "@types/dotenv-webpack": "5",
-    "@types/hookrouter": "2",
     "@types/node": "14",
     "@types/react": "17",
     "@types/react-dom": "17",
@@ -44,10 +43,11 @@
     "@aws-sdk/client-s3": "3",
     "@aws-sdk/lib-storage": "3",
     "@aws-sdk/s3-request-presigner": "3",
-    "hookrouter": "1",
     "react": "17",
     "react-dom": "17",
     "react-dropzone": "11",
-    "react-router-dom": "5"
+    "react-error-boundary": "3",
+    "react-router-dom": "5",
+    "recoil": "0"
   }
 }
