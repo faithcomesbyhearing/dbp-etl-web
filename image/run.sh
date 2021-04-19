@@ -39,7 +39,7 @@ directory.transcoded = /efs/${S3_KEY_PREFIX}/etl_uploader/transcoded/
 directory.errors = /efs/${S3_KEY_PREFIX}/etl_uploader/errors/
 error.limit.pct = 1.0
 directory.bucket_list = /efs/${S3_KEY_PREFIX}/etl_uploader/
-filename.lpts_xml = /efs/${S3_KEY_PREFIX}/etl_uploader/qry_dbp4_Regular_and_NonDrama.xml
+filename.lpts_xml = /efs/${S3_KEY_PREFIX}/etl_uploader/lpts-dbp.xml
 filename.accept.errors = /efs/${S3_KEY_PREFIX}/etl_uploader/AcceptErrors.txt
 filename.datetime = %y-%m-%d-%H-%M-%S
 video.transcoder.region = us-west-2
@@ -70,9 +70,19 @@ mkdir -p "/efs/${S3_KEY_PREFIX}/etl_uploader"
 for d in accepted complete database duplicate errors quarantine transcoded upload upload_aws; do mkdir "/efs/${S3_KEY_PREFIX}/etl_uploader/$d"; done
 touch "/efs/${S3_KEY_PREFIX}/etl_uploader/AcceptErrors.txt"
 
-aws s3 cp --no-progress "s3://${UPLOAD_BUCKET}/qry_dbp4_Regular_and_NonDrama.xml" "/efs/${S3_KEY_PREFIX}/etl_uploader/"
+if [ -n "$LPTS_UPLOAD" ]; then
+  aws s3 cp "s3://${UPLOAD_BUCKET}/${S3_KEY_PREFIX}/lpts-dbp.xml" "/efs/${S3_KEY_PREFIX}/etl_uploader/"
 
-FILESET_ID=$(aws s3api list-objects-v2 --bucket "${UPLOAD_BUCKET}" --prefix "${S3_KEY_PREFIX}/" --delimiter / | jq -r '.CommonPrefixes[0].Prefix | split("/")[1]')
+  if python3 load/DBPLoadController.py data; then
+    echo "DBP-ETL Succeeded. Overwriting existing LPTS file..."
+    aws s3 cp --no-progress "/efs/${S3_KEY_PREFIX}/etl_uploader/lpts-dbp.xml" "s3://${UPLOAD_BUCKET}/lpts-dbp.xml"
+  else
+    echo "DBP-ETL Failed. The uploaded LPTS file will NOT be used."
+  fi
+else
+  aws s3 cp --no-progress "s3://${UPLOAD_BUCKET}/lpts-dbp.xml" "/efs/${S3_KEY_PREFIX}/etl_uploader/"
+  FILESET_ID=$(aws s3api list-objects-v2 --bucket "${UPLOAD_BUCKET}" --prefix "${S3_KEY_PREFIX}/" --delimiter / | jq -r '.CommonPrefixes[0].Prefix | split("/")[1]')
 
-echo "Running load/DBPLoadController.py against s3://${UPLOAD_BUCKET} and ${S3_KEY_PREFIX}/${FILESET_ID}"
-python3 load/DBPLoadController.py data "s3://${UPLOAD_BUCKET}" "${S3_KEY_PREFIX}/${FILESET_ID}"
+  echo "Running load/DBPLoadController.py against s3://${UPLOAD_BUCKET} and ${S3_KEY_PREFIX}/${FILESET_ID}"
+  python3 load/DBPLoadController.py data "s3://${UPLOAD_BUCKET}" "${S3_KEY_PREFIX}/${FILESET_ID}"
+fi

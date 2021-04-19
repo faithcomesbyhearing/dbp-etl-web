@@ -272,7 +272,10 @@ function Upload() {
       (async () => {
         try {
           setShowResults(true);
-          for await (const [status, logs] of runTask(params.uploadKey)) {
+          for await (const [status, logs] of runTask(params.uploadKey, [{
+            name: "S3_KEY_PREFIX",
+            value: params.uploadKey,
+          }])) {
             setEcsTaskStatus(status);
             setEcsLogs(logs);
           }
@@ -295,7 +298,32 @@ function Upload() {
       const uploadKey = await uploadFiles(files, setUploadingMessage);
       setUploading(false);
       setShowResults(true);
-      for await (const [status, logs] of runTask(uploadKey)) {
+      for await (const [status, logs] of runTask(uploadKey, [{
+        name: "S3_KEY_PREFIX",
+        value: uploadKey,
+      }])) {
+        setEcsTaskStatus(status);
+        setEcsLogs(logs);
+      }
+      setArtifacts(await getArtifacts(uploadKey));
+    } catch (e) {
+      setError(e.message);
+    }
+  }
+
+  async function uploadLpts(file: FileWithPath) {
+    try {
+      setUploading(true);
+      const uploadKey = await uploadLptsFile(file, setUploadingMessage);
+      setUploading(false);
+      setShowResults(true);
+      for await (const [status, logs] of runTask(uploadKey, [{
+        name: "S3_KEY_PREFIX",
+        value: uploadKey,
+      }, {
+        name: "LPTS_UPLOAD",
+        value: "true",
+      }])) {
         setEcsTaskStatus(status);
         setEcsLogs(logs);
       }
@@ -312,7 +340,14 @@ function Upload() {
           console.error(error);
         }
       }
-      if (acceptedFiles.length > 0) {
+      setValidations([]);
+      if (acceptedFiles.length === 1) {
+        if (acceptedFiles[0].name === 'lpts-dbp.xml') {
+          uploadLpts(acceptedFiles[0]);
+        } else {
+          setValidations(["LPTS file should be named lpts-dbp.xml"]);
+        }
+      } else if (acceptedFiles.length > 0) {
         const commonPath = findCommonPath(acceptedFiles);
         setValidations(["Validating..."]);
         validate(commonPath).then((validations) => {
@@ -322,10 +357,10 @@ function Upload() {
             setValidations(["Passed Validation"]);
           }
         });
+        setFiles(acceptedFiles);
       } else {
         clear();
       }
-      setFiles(acceptedFiles);
     },
   });
 
@@ -413,7 +448,7 @@ function findCommonPath(acceptedFiles: FileWithPath[]) {
     });
 }
 
-async function* runTask(uploadKey: string) {
+async function* runTask(uploadKey: string, environment: { name: string, value: string }[]) {
   const task = (
     await ecsClient.send(
       new RunTaskCommand({
@@ -432,12 +467,7 @@ async function* runTask(uploadKey: string) {
           containerOverrides: [
             {
               name: "dbp-etl",
-              environment: [
-                {
-                  name: "S3_KEY_PREFIX",
-                  value: uploadKey,
-                },
-              ],
+              environment,
             },
           ],
         },
@@ -569,6 +599,38 @@ async function uploadFiles(
 
   const path = findCommonPath(files);
   await updateMetadata(uploadKey, { path, user: await getUserEmail() }, true);
+  return uploadKey;
+}
+
+async function uploadLptsFile(
+  file: FileWithPath,
+  setUploadingMessage: (uploadingMessage: string) => void
+) {
+  setUploadingMessage(`Uploading LPTS file`);
+
+  const uploadKey = new Date()
+    .toISOString()
+    .replace(/T|:/g, "-")
+    .replace(/\..+$/, "");
+
+  const upload = new S3Upload({
+    client: s3Client,
+    params: {
+      Bucket: process.env.UPLOAD_BUCKET,
+      Key: `${uploadKey}/lpts-dbp.xml`,
+      Body: file,
+    },
+  });
+  try {
+    await upload.done();
+  } catch (e) {
+    console.error(e);
+    throw new Error(`Error uploading ${file.name}`);
+  }
+
+  setUploadingMessage(`Finished Uploading`);
+
+  await updateMetadata(uploadKey, { user: await getUserEmail() }, true);
   return uploadKey;
 }
 
