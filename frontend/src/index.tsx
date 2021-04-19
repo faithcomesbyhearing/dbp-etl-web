@@ -35,8 +35,6 @@ function App() {
                 {" | "}
                 <Link to="/artifacts">Artifacts</Link>
                 {" | "}
-                <Link to={{ pathname: "/lpts" }}>LPTS</Link>
-                {" | "}
                 <button onClick={() => Auth.signOut()}>Sign Out</button>
               </nav>
               <Switch>
@@ -47,9 +45,6 @@ function App() {
                   path="/retry/:uploadKey"
                   render={({ location }) => <Upload key={location.key} />}
                 />
-                <Route path="/lpts">
-                  <LPTS />
-                </Route>
                 <Route
                   path="/"
                   render={({ location }) => <Upload key={location.key} />}
@@ -60,51 +55,6 @@ function App() {
         </MemoryRouter>
       </RecoilRoot>
     </ErrorBoundary>
-  );
-}
-
-function LPTS() {
-  const [status, setStatus] = useState("");
-
-  const { getRootProps, getInputProps, isDragActive } = useDropzone({
-    async onDrop(acceptedFiles: FileWithPath[], fileRejections) {
-      if (fileRejections.length > 0) {
-        setStatus(fileRejections.map(rejection => rejection.errors.map(error => error.message).join('\n')).join('\n'));
-        return;
-      }
-      console.log({ acceptedFiles });
-
-      if (acceptedFiles.length !== 1) {
-        setStatus('Must upload single file');
-        return;
-      }
-
-      if (acceptedFiles[0].name !== 'qry_dbp4_Regular_and_NonDrama.xml') {
-        setStatus('File should be named qry_dbp4_Regular_and_NonDrama.xml');
-        return;
-      }
-
-      setStatus('Uploading...');
-
-      await s3Client.send(new PutObjectCommand({
-        Bucket: process.env.UPLOAD_BUCKET,
-        Key: 'qry_dbp4_Regular_and_NonDrama.xml',
-        Body: acceptedFiles[0],
-      }));
-
-      setStatus('Finished Uploading');
-    },
-  });
-
-  return (
-    <div>
-      <h2>LPTS</h2>
-      <div {...getRootProps()}>
-        <input {...getInputProps()} />
-        <p>{isDragActive ? "Drop here" : "Drag here"}</p>
-      </div>
-      {status && (<p>{status}</p>)}
-    </div>
   );
 }
 
