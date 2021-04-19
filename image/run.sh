@@ -68,7 +68,7 @@ mkdir -p "/efs/${S3_KEY_PREFIX}/etl_uploader"
 for d in accepted complete database duplicate errors quarantine transcoded upload upload_aws; do mkdir "/efs/${S3_KEY_PREFIX}/etl_uploader/$d"; done
 touch "/efs/${S3_KEY_PREFIX}/etl_uploader/AcceptErrors.txt"
 
-if [ -n "$LPTS_UPLOAD" ]; then
+if [ -n "${LPTS_UPLOAD:-}" ]; then
   aws s3 cp "s3://${UPLOAD_BUCKET}/${S3_KEY_PREFIX}/lpts-dbp.xml" "/efs/${S3_KEY_PREFIX}/etl_uploader/"
 
   if python3 load/DBPLoadController.py data; then
