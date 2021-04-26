@@ -11,10 +11,9 @@ FROM alpine:latest
 
 WORKDIR /app
 
-RUN echo 'https://dl-cdn.alpinelinux.org/alpine/edge/main' >> /etc/apk/repositories
-RUN echo 'https://dl-cdn.alpinelinux.org/alpine/edge/testing' >> /etc/apk/repositories
 RUN apk update
-RUN apk add aws-cli ffmpeg jq mysql-client nodejs py3-boto3 py3-pymysql python3
+RUN apk add aws-cli ffmpeg jq mysql-client nodejs python3 py3-pip
+RUN pip install boto3 pymysql
 
 COPY --from=BiblePublisher /app/BiblePublisher ./BiblePublisher
 
