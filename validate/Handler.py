@@ -6,7 +6,6 @@
 import boto3
 from LPTSExtractReader import *
 from PreValidate import *
-from UnicodeScript import *
 
 
 def handler(event, context):
@@ -15,7 +14,6 @@ def handler(event, context):
 	print("Copying lpts-dbp.xml...")
 	s3.download_file(os.getenv("UPLOAD_BUCKET"), "lpts-dbp.xml", "/tmp/lpts-dbp.xml")
 	lptsReader = LPTSExtractReader("/tmp/lpts-dbp.xml")
-	unicodeScript = UnicodeScript()
 	directory = event["prefix"] # can be filesetId or lang_stockno_USX
 	filenames = event["files"] # Should be object keys
 	messages = PreValidate.validateLambda(lptsReader, directory, filenames)
