@@ -8,15 +8,6 @@ finish() {
 }
 trap finish EXIT
 
-if [ -n "${DBS_AWS_ACCESS_KEY_ID:-}" ] && [ -n "${DBS_AWS_SECRET_ACCESS_KEY:-}" ]; then
-  mkdir ~/.aws
-  cat > /root/.aws/credentials <<EOF
-[dbs]
-aws_access_key_id=${DBS_AWS_ACCESS_KEY_ID}
-aws_secret_access_key=${DBS_AWS_SECRET_ACCESS_KEY}
-EOF
-fi
-
 cat > /root/dbp-etl.cfg <<EOF
 [DEFAULT]
 database.user = ${DATABASE_USER}
@@ -49,7 +40,6 @@ video.preset.hls.720p = 1538163744878-tcmmai
 video.preset.hls.480p = 1538165037865-dri6c1
 video.preset.hls.360p = 1556118465775-ps3fba
 video.preset.web = 1351620000001-100070
-$([ -n "${DBS_AWS_ACCESS_KEY_ID:-}" ] && [ -n "${DBS_AWS_SECRET_ACCESS_KEY:-}" ] && echo "video.aws_profile = dbs")
 audio.transcoder.url = https://gig8vjo8p5.execute-api.us-west-2.amazonaws.com/job
 audio.transcoder.key = 1b5dc5708ae8d0335afdf94e421ae5f7d772e8f13b003c9d9733bce5caf34c6a
 audio.transcoder.sleep.sec = 10
@@ -62,6 +52,7 @@ database.port = ${DATABASE_PORT}
 database.db_name = ${DATABASE_DB_NAME}
 EOF
 
+eval "$(aws sts assume-role --role-arn "${ASSUME_ROLE_ARN}" --role-session-name session | jq -r '.Credentials | "export AWS_ACCESS_KEY_ID=\(.AccessKeyId)\nexport AWS_SECRET_ACCESS_KEY=\(.SecretAccessKey)\nexport AWS_SESSION_TOKEN=\(.SessionToken)"')"
 
 rm -rf "/efs/${S3_KEY_PREFIX}"
 mkdir -p "/efs/${S3_KEY_PREFIX}/etl_uploader"
@@ -73,7 +64,7 @@ if [ -n "${LPTS_UPLOAD:-}" ]; then
 
   if python3 load/DBPLoadController.py data; then
     echo "DBP-ETL Succeeded. Overwriting existing LPTS file..."
-    aws s3 cp --no-progress "/efs/${S3_KEY_PREFIX}/etl_uploader/lpts-dbp.xml" "s3://${UPLOAD_BUCKET}/lpts-dbp.xml"
+    aws s3 cp --no-progress "/efs/${S3_KEY_PREFIX}/etl_uploader/lpts-dbp.xml" "s3://${UPLOAD_BUCKET}/lpts-dbp.xml" --acl bucket-owner-full-control
   else
     echo "DBP-ETL Failed. The uploaded LPTS file will NOT be used."
   fi

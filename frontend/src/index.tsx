@@ -1,29 +1,51 @@
 import { Auth } from "@aws-amplify/auth";
 import { GetLogEventsCommand } from "@aws-sdk/client-cloudwatch-logs";
 import { DescribeTasksCommand, RunTaskCommand } from "@aws-sdk/client-ecs";
-import { InvokeCommand } from '@aws-sdk/client-lambda';
-import { GetObjectCommand, ListObjectsV2Command, PutObjectCommand } from "@aws-sdk/client-s3";
+import { InvokeCommand } from "@aws-sdk/client-lambda";
+import {
+  GetObjectCommand,
+  ListObjectsV2Command,
+  PutObjectCommand,
+} from "@aws-sdk/client-s3";
 import { Upload as S3Upload } from "@aws-sdk/lib-storage";
 import { Suspense, SyntheticEvent, useEffect, useState } from "react";
 import { render } from "react-dom";
 import { DropzoneInputProps, FileWithPath, useDropzone } from "react-dropzone";
-import { ErrorBoundary } from 'react-error-boundary';
-import { Link, MemoryRouter, Route, Switch, useHistory, useParams } from "react-router-dom";
-import { RecoilRoot } from 'recoil';
-import { ecsClient, getSignedUrl, getUserEmail, lambdaClient, logsClient, s3Client } from "./aws";
+import { ErrorBoundary } from "react-error-boundary";
+import {
+  Link,
+  MemoryRouter,
+  Route,
+  Switch,
+  useHistory,
+  useParams,
+} from "react-router-dom";
+import { RecoilRoot } from "recoil";
+import {
+  ecsClient,
+  getSignedUrl,
+  getUserEmail,
+  lambdaClient,
+  logsClient,
+  s3Client,
+} from "./aws";
 import { useAsync } from "./hooks";
 
 render(<App />, document.getElementById("app"));
 
 function App() {
   return (
-    <ErrorBoundary fallbackRender={({ error, resetErrorBoundary }) => {
-      return (<>
-        <h3>An error has occured</h3>
-        <button onClick={() => resetErrorBoundary()}>Retry</button>
-        <pre>{error.stack}</pre>
-      </>);
-    }}>
+    <ErrorBoundary
+      fallbackRender={({ error, resetErrorBoundary }) => {
+        return (
+          <>
+            <h3>An error has occured</h3>
+            <button onClick={() => resetErrorBoundary()}>Retry</button>
+            <pre>{error.stack}</pre>
+          </>
+        );
+      }}
+    >
       <RecoilRoot>
         <MemoryRouter>
           <Suspense fallback={"Loading..."}>
@@ -31,7 +53,9 @@ function App() {
               <h1>DBP-ETL</h1>
               <p>v{process.env.VERSION}</p>
               <nav>
-                <Link to={{ pathname: "/", key: `${Math.random()}` }}>Upload</Link>
+                <Link to={{ pathname: "/", key: `${Math.random()}` }}>
+                  Upload
+                            </Link>
                 {" | "}
                 <Link to="/artifacts">Artifacts</Link>
                 {" | "}
@@ -72,15 +96,19 @@ function Artifacts() {
         <p>Error: {state.error.message}</p>
       ) : (
         <>
-          <button onClick={() => setPage(Math.max(1, page - 1))}>Prev</button>
-          {" "}
-          Page {page}
-          {" "}
-          <button onClick={() => setPage(Math.min(Math.ceil((state.value?.length || 1) / 10), page + 1))}>Next</button>
+          <button onClick={() => setPage(Math.max(1, page - 1))}>Prev</button>{" "}
+              Page {page}{" "}
+          <button
+            onClick={() =>
+              setPage(
+                Math.min(Math.ceil((state.value?.length || 1) / 10), page + 1)
+              )
+            }
+          >
+            Next
+              </button>
           <ul>
-            {state.value
-              ?.slice().reverse()
-              .slice((page - 1) * 10, page * 10)
+            {state.value?.slice((page - 1) * 10, page * 10)
               .map((key: string) => (
                 <ArtifactFolder key={key} uploadKey={key} />
               ))}
@@ -108,7 +136,7 @@ function ArtifactFolder({ uploadKey }: { uploadKey: string }) {
         })
       )
       .then((x) => setMetadata(x.Metadata))
-      .catch(_ => setMetadata(null));
+      .catch((_) => setMetadata(null));
   }, []);
 
   function toggle(e: SyntheticEvent<HTMLDetailsElement, Event>) {
@@ -122,7 +150,7 @@ function ArtifactFolder({ uploadKey }: { uploadKey: string }) {
             Prefix: uploadKey,
           })
         )
-        .then((x) => setUploadedFiles(x.Contents?.map(x => x.Key!) || []));
+        .then((x) => setUploadedFiles(x.Contents?.map((x) => x.Key!) || []));
     }
   }
 
@@ -146,7 +174,7 @@ function ArtifactFolder({ uploadKey }: { uploadKey: string }) {
     history.push(`/retry/${uploadKey}`);
   }
 
-  const [year, month, day, hour, minute, second] = uploadKey.split('-');
+  const [year, month, day, hour, minute, second] = uploadKey.split("-");
   const date = new Date(`${year}-${month}-${day}T${hour}:${minute}:${second}Z`);
 
   return (
@@ -154,11 +182,21 @@ function ArtifactFolder({ uploadKey }: { uploadKey: string }) {
       <details onToggle={toggle}>
         <summary>
           {date.toLocaleString()}
-          {metadata === undefined && ' Loading...'}
-          {metadata === null && ' Missing metadata'}
+          {metadata === undefined && " Loading..."}
+          {metadata === null && " Missing metadata"}
           {metadata?.status && ` (${metadata?.status})`}
-          {metadata?.path && (<><br />&emsp;Path: {metadata?.path}</>)}
-          {metadata?.user && (<><br />&emsp;User: {metadata?.user}</>)}
+          {metadata?.path && (
+            <>
+              <br />
+                  &emsp;Path: {metadata?.path}
+            </>
+          )}
+          {metadata?.user && (
+            <>
+              <br />
+                  &emsp;User: {metadata?.user}
+            </>
+          )}
         </summary>
         <dl>
           <dt>Artifacts</dt>
@@ -184,12 +222,11 @@ function ArtifactFolder({ uploadKey }: { uploadKey: string }) {
           <>
             <details>
               <summary>
-                <button onClick={() => retry(uploadKey)}>Retry</button>
-                {" "}
-                Uploaded Files
-              </summary>
+                <button onClick={() => retry(uploadKey)}>Retry</button> Uploaded
+                          Files
+                      </summary>
               <ul>
-                {uploadedFiles?.map(x => (
+                {uploadedFiles?.map((x) => (
                   <li key={x}>{x}</li>
                 ))}
               </ul>
@@ -222,10 +259,12 @@ function Upload() {
       (async () => {
         try {
           setShowResults(true);
-          for await (const [status, logs] of runTask(params.uploadKey, [{
-            name: "S3_KEY_PREFIX",
-            value: params.uploadKey,
-          }])) {
+          for await (const [status, logs] of runTask(params.uploadKey, [
+            {
+              name: "S3_KEY_PREFIX",
+              value: params.uploadKey,
+            },
+          ])) {
             setEcsTaskStatus(status);
             setEcsLogs(logs);
           }
@@ -248,10 +287,12 @@ function Upload() {
       const uploadKey = await uploadFiles(files, setUploadingMessage);
       setUploading(false);
       setShowResults(true);
-      for await (const [status, logs] of runTask(uploadKey, [{
-        name: "S3_KEY_PREFIX",
-        value: uploadKey,
-      }])) {
+      for await (const [status, logs] of runTask(uploadKey, [
+        {
+          name: "S3_KEY_PREFIX",
+          value: uploadKey,
+        },
+      ])) {
         setEcsTaskStatus(status);
         setEcsLogs(logs);
       }
@@ -267,13 +308,16 @@ function Upload() {
       const uploadKey = await uploadLptsFile(file, setUploadingMessage);
       setUploading(false);
       setShowResults(true);
-      for await (const [status, logs] of runTask(uploadKey, [{
-        name: "S3_KEY_PREFIX",
-        value: uploadKey,
-      }, {
-        name: "LPTS_UPLOAD",
-        value: "true",
-      }])) {
+      for await (const [status, logs] of runTask(uploadKey, [
+        {
+          name: "S3_KEY_PREFIX",
+          value: uploadKey,
+        },
+        {
+          name: "LPTS_UPLOAD",
+          value: "true",
+        },
+      ])) {
         setEcsTaskStatus(status);
         setEcsLogs(logs);
       }
@@ -292,7 +336,7 @@ function Upload() {
       }
       setValidations([]);
       if (acceptedFiles.length === 1) {
-        if (acceptedFiles[0].name === 'lpts-dbp.xml') {
+        if (acceptedFiles[0].name === "lpts-dbp.xml") {
           uploadLpts(acceptedFiles[0]);
         } else {
           setValidations(["LPTS file should be named lpts-dbp.xml"]);
@@ -300,9 +344,11 @@ function Upload() {
       } else if (acceptedFiles.length > 0) {
         const commonPath = findCommonPath(acceptedFiles);
         setValidations(["Validating..."]);
-        validate(commonPath).then((validations) => {
+        validate(commonPath, acceptedFiles.map(x => x.name)).then((validations) => {
           if (validations.length > 0) {
-            setValidations(validations.map(validation => `${commonPath} ${validation}`))
+            setValidations(
+              validations.map((validation) => `${commonPath} ${validation}`)
+            );
           } else {
             setValidations(["Passed Validation"]);
           }
@@ -363,18 +409,16 @@ function Upload() {
         </ul>
       </details>
       <ul>
-        {validations.map(validation => (
-          <li key={validation}>
-            {validation}
-          </li>
+        {validations.map((validation) => (
+          <li key={validation}>{validation}</li>
         ))}
       </ul>
       <button disabled={!(files.length > 0)} onClick={clear}>
         Clear
-      </button>
+        </button>
       <button disabled={!(files.length > 0)} onClick={upload}>
         Upload
-      </button>
+        </button>
     </div>
   );
 }
@@ -398,7 +442,10 @@ function findCommonPath(acceptedFiles: FileWithPath[]) {
     });
 }
 
-async function* runTask(uploadKey: string, environment: { name: string, value: string }[]) {
+async function* runTask(
+  uploadKey: string,
+  environment: { name: string; value: string }[]
+) {
   const task = (
     await ecsClient.send(
       new RunTaskCommand({
@@ -469,14 +516,22 @@ async function* runTask(uploadKey: string, environment: { name: string, value: s
 }
 
 async function getRuns() {
-  return (
-    await s3Client.send(
+  let ContinuationToken: string | undefined;
+  let runs: string[] = [];
+
+  do {
+    const response = await s3Client.send(
       new ListObjectsV2Command({
         Bucket: process.env.ARTIFACTS_BUCKET,
         Delimiter: "/",
+        ContinuationToken,
       })
-    )
-  ).CommonPrefixes?.map((x) => x.Prefix!.slice(0, -1));
+    );
+    ContinuationToken = response.NextContinuationToken;
+    runs = runs.concat(response.CommonPrefixes?.map((x) => x.Prefix!.slice(0, -1)) || []);
+  } while (ContinuationToken);
+
+  return runs.sort().reverse();
 }
 
 async function getArtifacts(uploadKey: string) {
@@ -516,8 +571,8 @@ async function uploadFiles(
   let remaining = files.length;
   setUploadingMessage(`Uploading ${remaining} files`);
 
-  if (files.some(file => !file.path || !file.path.startsWith('/'))) {
-    throw new Error('File paths must start /. Did you drag and drop a folder?');
+  if (files.some((file) => !file.path || !file.path.startsWith("/"))) {
+    throw new Error("File paths must start /. Did you drag and drop a folder?");
   }
 
   await Promise.all(
@@ -532,7 +587,9 @@ async function uploadFiles(
       });
       upload.on("httpUploadProgress", (progress) => {
         setUploadingMessage(
-          `Uploading ${remaining} files (${file.name}... (${Math.round((progress.loaded! / progress.total!) * 100)}%))`
+          `Uploading ${remaining} files (${file.name}... (${Math.round(
+            (progress.loaded! / progress.total!) * 100
+          )}%))`
         );
       });
       try {
@@ -612,13 +669,19 @@ async function updateMetadata(
   );
 }
 
-async function validate(uploadKey: string): Promise<string[]> {
+async function validate(uploadKey: string, files: string[]): Promise<string[]> {
   try {
-    const result = await lambdaClient.send(new InvokeCommand({
-      FunctionName: process.env.VALIDATE_LAMBDA,
-      Payload: new TextEncoder().encode(JSON.stringify({ prefix: uploadKey })),
-    }));
-    return JSON.parse(new TextDecoder("utf-8").decode(result.Payload));
+    const result = await lambdaClient.send(
+      new InvokeCommand({
+        FunctionName: process.env.VALIDATE_LAMBDA,
+        Payload: new TextEncoder().encode(
+          JSON.stringify({ prefix: uploadKey, files })
+        ),
+      })
+    );
+    const payload = JSON.parse(new TextDecoder("utf-8").decode(result.Payload));
+    if (payload.errorMessage) return [payload.errorMessage];
+    return payload;
   } catch {
     return ["Error running validator"];
   }
