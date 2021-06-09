@@ -30,6 +30,7 @@ import {
   s3Client,
 } from "./aws";
 import { useAsync } from "./hooks";
+import { debounce } from 'debounce';
 
 render(<App />, document.getElementById("app"));
 
@@ -55,7 +56,7 @@ function App() {
               <nav>
                 <Link to={{ pathname: "/", key: `${Math.random()}` }}>
                   Upload
-                            </Link>
+                </Link>
                 {" | "}
                 <Link to="/artifacts">Artifacts</Link>
                 {" | "}
@@ -97,7 +98,7 @@ function Artifacts() {
       ) : (
         <>
           <button onClick={() => setPage(Math.max(1, page - 1))}>Prev</button>{" "}
-              Page {page}{" "}
+          Page {page}{" "}
           <button
             onClick={() =>
               setPage(
@@ -106,7 +107,7 @@ function Artifacts() {
             }
           >
             Next
-              </button>
+          </button>
           <ul>
             {state.value?.slice((page - 1) * 10, page * 10)
               .map((key: string) => (
@@ -188,13 +189,13 @@ function ArtifactFolder({ uploadKey }: { uploadKey: string }) {
           {metadata?.path && (
             <>
               <br />
-                  &emsp;Path: {metadata?.path}
+            &emsp;Path: {metadata?.path}
             </>
           )}
           {metadata?.user && (
             <>
               <br />
-                  &emsp;User: {metadata?.user}
+            &emsp;User: {metadata?.user}
             </>
           )}
         </summary>
@@ -223,8 +224,8 @@ function ArtifactFolder({ uploadKey }: { uploadKey: string }) {
             <details>
               <summary>
                 <button onClick={() => retry(uploadKey)}>Retry</button> Uploaded
-                          Files
-                      </summary>
+                Files
+              </summary>
               <ul>
                 {uploadedFiles?.map((x) => (
                   <li key={x}>{x}</li>
@@ -250,6 +251,7 @@ function Upload() {
   const [files, setFiles] = useState<FileWithPath[]>([]);
   const [uploadingMessage, setUploadingMessage] = useState("");
   const [error, setError] = useState("");
+  const [prevalidate, setPrevalidate] = useState("");
   const [validations, setValidations] = useState<string[]>([]);
 
   const params = useParams<{ uploadKey: string }>();
@@ -335,24 +337,12 @@ function Upload() {
         }
       }
       setValidations([]);
-      if (acceptedFiles.length === 1) {
-        if (acceptedFiles[0].name === "lpts-dbp.xml") {
-          uploadLpts(acceptedFiles[0]);
-        } else {
-          setValidations(["LPTS file should be named lpts-dbp.xml"]);
-        }
+      if (acceptedFiles[0].name === "lpts-dbp.xml") {
+        uploadLpts(acceptedFiles[0]);
       } else if (acceptedFiles.length > 0) {
         const commonPath = findCommonPath(acceptedFiles);
-        setValidations(["Validating..."]);
-        validate(commonPath, acceptedFiles.map(x => x.name)).then((validations) => {
-          if (validations.length > 0) {
-            setValidations(
-              validations.map((validation) => `${commonPath} ${validation}`)
-            );
-          } else {
-            setValidations(["Passed Validation"]);
-          }
-        });
+        setPrevalidate(commonPath);
+        runPrevalidate(commonPath, acceptedFiles.map(x => x.name), setValidations);
         setFiles(acceptedFiles);
       } else {
         clear();
@@ -394,6 +384,13 @@ function Upload() {
   return (
     <div>
       <h2>Upload</h2>
+      <input
+        value={prevalidate}
+        onChange={event => {
+          setPrevalidate(event.target.value);
+          runPrevalidate(event.target.value, [], setValidations);
+        }}
+        placeholder="Prevalidate" />
       <div {...getRootProps()}>
         <input
           {...getInputProps({ webkitdirectory: "true" } as DropzoneInputProps)}
@@ -415,10 +412,10 @@ function Upload() {
       </ul>
       <button disabled={!(files.length > 0)} onClick={clear}>
         Clear
-        </button>
+      </button>
       <button disabled={!(files.length > 0)} onClick={upload}>
         Upload
-        </button>
+      </button>
     </div>
   );
 }
@@ -669,13 +666,34 @@ async function updateMetadata(
   );
 }
 
-async function validate(uploadKey: string, files: string[]): Promise<string[]> {
+
+let lastPrevalidate: number;
+const runPrevalidate = debounce(async (commaSeparatedPrefixes: string, files: string[], setValidations: (value: string[]) => void) => {
+  const prefixes = commaSeparatedPrefixes.split(',');
+  setValidations(["Validating..."]);
+  const token = Math.random();
+  lastPrevalidate = token;
+  const validations: string[] = [];
+  await Promise.all(prefixes.map(async (prefix) => {
+    const newValidations = await runValidateLambda(prefix, files);
+    console.log({ lastPrevalidate, token });
+    if (newValidations.length > 0) {
+      validations.push(...newValidations.map((validation) => `${prefix}: ${validation}`));
+    } else {
+      validations.push(`${prefix}: Passed Validation`);
+    }
+    console.log(lastPrevalidate === token, validations);
+    if (lastPrevalidate === token) setValidations([...validations]);
+  }));
+}, 1000);
+
+async function runValidateLambda(prefix: string, files: string[]): Promise<string[]> {
   try {
     const result = await lambdaClient.send(
       new InvokeCommand({
         FunctionName: process.env.VALIDATE_LAMBDA,
         Payload: new TextEncoder().encode(
-          JSON.stringify({ prefix: uploadKey, files })
+          JSON.stringify({ prefix, files })
         ),
       })
     );
