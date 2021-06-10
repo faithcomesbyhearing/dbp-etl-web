@@ -70,7 +70,7 @@ if [ -n "${LPTS_UPLOAD:-}" ]; then
   fi
 else
   aws s3 cp --no-progress "s3://${UPLOAD_BUCKET}/lpts-dbp.xml" "/efs/${S3_KEY_PREFIX}/etl_uploader/"
-  FILESET_ID=$(aws s3api list-objects-v2 --bucket "${UPLOAD_BUCKET}" --prefix "${S3_KEY_PREFIX}/" --delimiter / | jq -r '.CommonPrefixes[0].Prefix | split("/")[1]')
+  FILESET_ID="$(aws s3api list-objects-v2 --bucket "${UPLOAD_BUCKET}" --prefix "${S3_KEY_PREFIX}/" --delimiter / | jq -r '.CommonPrefixes[0].Prefix | split("/")[1]')"
 
   echo "Running load/DBPLoadController.py against s3://${UPLOAD_BUCKET} and ${S3_KEY_PREFIX}/${FILESET_ID}"
   python3 load/DBPLoadController.py data "s3://${UPLOAD_BUCKET}" "${S3_KEY_PREFIX}/${FILESET_ID}"
