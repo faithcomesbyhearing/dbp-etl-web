@@ -342,7 +342,7 @@ function Upload() {
       } else if (acceptedFiles.length > 0) {
         const commonPath = findCommonPath(acceptedFiles);
         setPrevalidate(commonPath);
-        runPrevalidate(commonPath, acceptedFiles.map(x => x.name), setValidations);
+        runPrevalidate([commonPath], acceptedFiles.map(x => x.name), setValidations);
         setFiles(acceptedFiles);
       } else {
         clear();
@@ -388,7 +388,7 @@ function Upload() {
         value={prevalidate}
         onChange={event => {
           setPrevalidate(event.target.value);
-          runPrevalidate(event.target.value, [], setValidations);
+          runPrevalidate(event.target.value.split(','), [], setValidations);
         }}
         placeholder="Prevalidate" />
       <div {...getRootProps()}>
@@ -668,8 +668,7 @@ async function updateMetadata(
 
 
 let lastPrevalidate: number;
-const runPrevalidate = debounce(async (commaSeparatedPrefixes: string, files: string[], setValidations: (value: string[]) => void) => {
-  const prefixes = commaSeparatedPrefixes.split(',');
+const runPrevalidate = debounce(async (prefixes: string[], files: string[], setValidations: (value: string[]) => void) => {
   setValidations(["Validating..."]);
   const token = Math.random();
   lastPrevalidate = token;
