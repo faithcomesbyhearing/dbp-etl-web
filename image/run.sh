@@ -47,6 +47,7 @@ audio.transcoder.input = { "bucket": "\$bucket", "key": "\$prefix" }
 audio.transcoder.output.0 = { "bucket": "${S3_BUCKET}", "key": "\$prefix-opus16", "bitrate": 16, "container": "webm", "codec": "opus" }
 lambda.zip.function = arn:aws:lambda:us-west-2:078432969830:function:transcoding-api-create-zip-w9gxhplj7q9mju3h
 lambda.zip.region = us-west-2
+lambda.zip.timeout = 900
 
 [data]
 database.host = ${DATABASE_HOST}
