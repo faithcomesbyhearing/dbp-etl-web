@@ -30,7 +30,7 @@ import {
   s3Client,
 } from "./aws";
 import { useAsync } from "./hooks";
-import { debounce } from 'debounce';
+import { debounce } from "debounce";
 
 render(<App />, document.getElementById("app"));
 
@@ -87,7 +87,35 @@ function Artifacts() {
   const state = useAsync(getRuns);
 
   const [page, setPage] = useState(1);
+  const [filter, setFilter] = useState("");
 
+  if (state.loading) {
+    return (
+      <div>
+        <h2>Artifacts</h2>
+        <p>Loading...</p>
+      </div>
+    );
+  } else if (state.error) {
+    return (
+      <div>
+        <h2>Artifacts</h2>
+        <p>Error: {state.error.message}</p>
+      </div>
+    );
+  }
+
+  const runs = state.value.filter(
+    (x) =>
+      !filter ||
+      x.prefix.includes(filter.toLowerCase()) ||
+      (x.metadata &&
+        JSON.stringify(x.metadata).toLowerCase().includes(filter.toLowerCase()))
+  );
+
+  console.log({ runs });
+
+  const recordsPerPage = 25;
   return (
     <div>
       <h2>Artifacts</h2>
@@ -98,145 +126,163 @@ function Artifacts() {
       ) : (
         <>
           <button onClick={() => setPage(Math.max(1, page - 1))}>Prev</button>{" "}
-          Page {page}{" "}
+          Page {page} of {Math.ceil((runs.length || 1) / recordsPerPage)}{" "}
           <button
             onClick={() =>
               setPage(
-                Math.min(Math.ceil((state.value?.length || 1) / 10), page + 1)
+                Math.min(
+                  Math.ceil((runs.length || 1) / recordsPerPage),
+                  page + 1
+                )
               )
             }
           >
             Next
-          </button>
-          <ul>
-            {state.value?.slice((page - 1) * 10, page * 10)
-              .map((key: string) => (
-                <ArtifactFolder key={key} uploadKey={key} />
-              ))}
-          </ul>
+          </button>{" "}
+          <input
+            value={filter}
+            onChange={(e) => {
+              setPage(1);
+              setFilter(e.target.value);
+            }}
+            placeholder="Filter"
+          />
+          <table border="1">
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Path</th>
+                <th>User</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              {runs
+                .slice((page - 1) * recordsPerPage, page * recordsPerPage)
+                .map(({ prefix, metadata }) => (
+                  <ArtifactFolder
+                    key={prefix}
+                    prefix={prefix}
+                    metadata={metadata}
+                  />
+                ))}
+            </tbody>
+          </table>
         </>
       )}
     </div>
   );
 }
 
-function ArtifactFolder({ uploadKey }: { uploadKey: string }) {
-  const [metadata, setMetadata] = useState<{ [key: string]: string } | null>();
+function ArtifactFolder({ prefix, metadata }: { prefix: any; metadata: any }) {
   const [artifacts, setArtifacts] = useState<{ key: string; url: string }[]>();
   const [uploadedFiles, setUploadedFiles] = useState<string[]>();
   const [logs, setLogs] = useState<string>();
 
   const history = useHistory();
 
-  useEffect(() => {
-    s3Client
-      .send(
-        new GetObjectCommand({
-          Bucket: process.env.ARTIFACTS_BUCKET,
-          Key: `${uploadKey}/metadata`,
-        })
-      )
-      .then((x) => setMetadata(x.Metadata))
-      .catch((_) => setMetadata(null));
-  }, []);
+  const [open, setOpen] = useState(false);
 
-  function toggle(e: SyntheticEvent<HTMLDetailsElement, Event>) {
-    if (!e.currentTarget.open) return;
-    if (artifacts === undefined) getArtifacts(uploadKey).then(setArtifacts);
+  function toggle() {
+    setOpen(!open);
+    if (open) return;
+    if (artifacts === undefined) getArtifacts(prefix).then(setArtifacts);
     if (uploadedFiles === undefined) {
       s3Client
         .send(
           new ListObjectsV2Command({
             Bucket: process.env.UPLOAD_BUCKET,
-            Prefix: uploadKey,
+            Prefix: prefix,
           })
         )
         .then((x) => setUploadedFiles(x.Contents?.map((x) => x.Key!) || []));
     }
   }
 
+  function refreshLogs() {
+    setLogs(undefined);
+    logsClient
+      .send(
+        new GetLogEventsCommand({
+          logGroupName: `/ecs/${process.env.ECS_CLUSTER}`,
+          logStreamName: `dbp-etl/dbp-etl/${metadata.taskid}`,
+        })
+      )
+      .then((x) => x.events!.map((event) => event.message).join("\n"))
+      .then(setLogs);
+  }
+
   function toggleLogs(e: SyntheticEvent<HTMLDetailsElement, Event>) {
     if (!e.currentTarget.open) return;
     if (!metadata?.taskid) return;
-    if (logs === undefined) {
-      logsClient
-        .send(
-          new GetLogEventsCommand({
-            logGroupName: `/ecs/${process.env.ECS_CLUSTER}`,
-            logStreamName: `dbp-etl/dbp-etl/${metadata.taskid}`,
-          })
-        )
-        .then((x) => x.events!.map((event) => event.message).join("\n"))
-        .then(setLogs);
-    }
+    if (logs === undefined) refreshLogs();
   }
 
   function retry(uploadKey: string) {
     history.push(`/retry/${uploadKey}`);
   }
 
-  const [year, month, day, hour, minute, second] = uploadKey.split("-");
+  const [year, month, day, hour, minute, second] = prefix.split("-");
   const date = new Date(`${year}-${month}-${day}T${hour}:${minute}:${second}Z`);
 
   return (
-    <li>
-      <details onToggle={toggle}>
-        <summary>
-          {date.toLocaleString()}
-          {metadata === undefined && " Loading..."}
-          {metadata === null && " Missing metadata"}
-          {metadata?.status && ` (${metadata?.status})`}
-          {metadata?.path && (
-            <>
-              <br />
-            &emsp;Path: {metadata?.path}
-            </>
-          )}
-          {metadata?.user && (
-            <>
-              <br />
-            &emsp;User: {metadata?.user}
-            </>
-          )}
-        </summary>
-        <dl>
-          <dt>Artifacts</dt>
-          {artifacts === undefined ? (
-            <dd>Loading...</dd>
-          ) : (
-            artifacts.map(({ key, url }) => (
-              <dd key={key}>
-                <a href={url}>{key}</a>
-              </dd>
-            ))
-          )}
-        </dl>
-        {metadata?.taskid && (
-          <details onToggle={toggleLogs}>
-            <summary>Logs</summary>
-            <pre>
-              {logs === undefined ? "Loading..." : logs || "No Logs Found"}
-            </pre>
-          </details>
-        )}
-        {uploadedFiles && uploadedFiles.length > 0 && (
+    <>
+      <tr onClick={() => toggle()}>
+        <td style={{ whiteSpace: "nowrap" }}>{date.toLocaleString()}</td>
+        {!metadata ? (
+          <td colSpan="3">Missing metadata</td>
+        ) : (
           <>
-            <details>
-              <summary>
-                <button onClick={() => retry(uploadKey)}>Retry</button> Uploaded
-                Files
-              </summary>
-              <ul>
-                {uploadedFiles?.map((x) => (
-                  <li key={x}>{x}</li>
-                ))}
-              </ul>
-            </details>
+            <td style={{ whiteSpace: "nowrap" }}>{metadata?.path}</td>
+            <td style={{ whiteSpace: "nowrap" }}>{metadata?.user}</td>
+            <td>{metadata?.status}</td>
           </>
         )}
-        <br />
-      </details>
-    </li>
+      </tr>
+      {open && (
+        <tr>
+          <td colSpan="4">
+            <dl>
+              <dt>Artifacts</dt>
+              {artifacts === undefined ? (
+                <dd>Loading...</dd>
+              ) : (
+                artifacts.map(({ key, url }) => (
+                  <dd key={key}>
+                    <a href={url}>{key}</a>
+                  </dd>
+                ))
+              )}
+            </dl>
+            {metadata?.taskid && (
+              <details onToggle={toggleLogs}>
+                <summary>
+                  <button onClick={() => refreshLogs()}>Refresh</button> Logs
+                </summary>
+                <pre style={{ whiteSpace: "pre-wrap", maxWidth: "100%" }}>
+                  {logs === undefined ? "Loading..." : logs || "No Logs Found"}
+                </pre>
+              </details>
+            )}
+            {uploadedFiles && uploadedFiles.length > 0 && (
+              <>
+                <details>
+                  <summary>
+                    <button onClick={() => retry(prefix)}>Retry</button>{" "}
+                    Uploaded Files
+                  </summary>
+                  <ul>
+                    {uploadedFiles?.map((x) => (
+                      <li key={x}>{x}</li>
+                    ))}
+                  </ul>
+                </details>
+              </>
+            )}
+          </td>
+        </tr>
+      )}
+    </>
   );
 }
 
@@ -342,7 +388,11 @@ function Upload() {
       } else if (acceptedFiles.length > 0) {
         const commonPath = findCommonPath(acceptedFiles);
         setPrevalidate(commonPath);
-        runPrevalidate([commonPath], acceptedFiles.map(x => x.name), setValidations);
+        runPrevalidate(
+          [commonPath],
+          acceptedFiles.map((x) => x.name),
+          setValidations
+        );
         setFiles(acceptedFiles);
       } else {
         clear();
@@ -386,11 +436,12 @@ function Upload() {
       <h2>Upload</h2>
       <input
         value={prevalidate}
-        onChange={event => {
+        onChange={(event) => {
           setPrevalidate(event.target.value);
-          runPrevalidate(event.target.value.split(','), [], setValidations);
+          runPrevalidate(event.target.value.split(","), [], setValidations);
         }}
-        placeholder="Prevalidate" />
+        placeholder="Prevalidate"
+      />
       <div {...getRootProps()}>
         <input
           {...getInputProps({ webkitdirectory: "true" } as DropzoneInputProps)}
@@ -514,7 +565,7 @@ async function* runTask(
 
 async function getRuns() {
   let ContinuationToken: string | undefined;
-  let runs: string[] = [];
+  let runs: { prefix: string; metadata?: any }[] = [];
 
   do {
     const response = await s3Client.send(
@@ -525,8 +576,53 @@ async function getRuns() {
       })
     );
     ContinuationToken = response.NextContinuationToken;
-    runs = runs.concat(response.CommonPrefixes?.map((x) => x.Prefix!.slice(0, -1)) || []);
+
+    runs.push(
+      ...(await Promise.all(
+        (response.CommonPrefixes?.map((x) => x.Prefix!.slice(0, -1)) || []).map(
+          async (prefix) => {
+            const localStorageItem = localStorage.getItem(prefix);
+            if (localStorageItem === "MISSING") {
+              return { prefix };
+            }
+            if (localStorageItem) {
+              return {
+                prefix,
+                metadata: JSON.parse(localStorageItem),
+              };
+            }
+            const metadata = await new Promise<string>((resolve) => {
+              s3Client
+                .send(
+                  new GetObjectCommand({
+                    Bucket: process.env.ARTIFACTS_BUCKET,
+                    Key: `${prefix}/metadata`,
+                  })
+                )
+                .then((x) => resolve(JSON.stringify(x.Metadata)))
+                .catch((_) => resolve("MISSING"));
+            });
+            {
+              const [year, month, day, hour, minute, second] = prefix.split(
+                "-"
+              );
+              const date = new Date(
+                `${year}-${month}-${day}T${hour}:${minute}:${second}Z`
+              );
+              date.setDate(date.getDate() + 1);
+              if (date < new Date()) localStorage.setItem(prefix, metadata);
+            }
+            return {
+              prefix,
+              metadata:
+                metadata !== "MISSING" ? JSON.parse(metadata) : undefined,
+            };
+          }
+        )
+      ))
+    );
   } while (ContinuationToken);
+  console.log({ runs });
 
   return runs.sort().reverse();
 }
@@ -666,34 +762,45 @@ async function updateMetadata(
   );
 }
 
-
 let lastPrevalidate: number;
-const runPrevalidate = debounce(async (prefixes: string[], files: string[], setValidations: (value: string[]) => void) => {
-  setValidations(["Validating..."]);
-  const token = Math.random();
-  lastPrevalidate = token;
-  const validations: string[] = [];
-  await Promise.all(prefixes.map(async (prefix) => {
-    const newValidations = await runValidateLambda(prefix, files);
-    console.log({ lastPrevalidate, token });
-    if (newValidations.length > 0) {
-      validations.push(...newValidations.map((validation) => `${prefix}: ${validation}`));
-    } else {
-      validations.push(`${prefix}: Passed Validation`);
-    }
-    console.log(lastPrevalidate === token, validations);
-    if (lastPrevalidate === token) setValidations([...validations]);
-  }));
-}, 1000);
+const runPrevalidate = debounce(
+  async (
+    prefixes: string[],
+    files: string[],
+    setValidations: (value: string[]) => void
+  ) => {
+    setValidations(["Validating..."]);
+    const token = Math.random();
+    lastPrevalidate = token;
+    const validations: string[] = [];
+    await Promise.all(
+      prefixes.map(async (prefix) => {
+        const newValidations = await runValidateLambda(prefix, files);
+        console.log({ lastPrevalidate, token });
+        if (newValidations.length > 0) {
+          validations.push(
+            ...newValidations.map((validation) => `${prefix}: ${validation}`)
+          );
+        } else {
+          validations.push(`${prefix}: Passed Validation`);
+        }
+        console.log(lastPrevalidate === token, validations);
+        if (lastPrevalidate === token) setValidations([...validations]);
+      })
+    );
+  },
+  1000
+);
 
-async function runValidateLambda(prefix: string, files: string[]): Promise<string[]> {
+async function runValidateLambda(
+  prefix: string,
+  files: string[]
+): Promise<string[]> {
   try {
     const result = await lambdaClient.send(
       new InvokeCommand({
         FunctionName: process.env.VALIDATE_LAMBDA,
-        Payload: new TextEncoder().encode(
-          JSON.stringify({ prefix, files })
-        ),
+        Payload: new TextEncoder().encode(JSON.stringify({ prefix, files })),
       })
     );
     const payload = JSON.parse(new TextDecoder("utf-8").decode(result.Payload));

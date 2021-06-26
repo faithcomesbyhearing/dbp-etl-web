@@ -1,8 +1,8 @@
 import { Auth } from "@aws-amplify/auth";
 import { CloudWatchLogsClient } from "@aws-sdk/client-cloudwatch-logs";
-import { ClientException, ECSClient } from "@aws-sdk/client-ecs";
+import { ECSClient } from "@aws-sdk/client-ecs";
+import { LambdaClient } from "@aws-sdk/client-lambda";
 import { S3Client } from "@aws-sdk/client-s3";
-import { LambdaClient } from '@aws-sdk/client-lambda';
 
 export { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 

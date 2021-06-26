@@ -21,7 +21,7 @@ export default (environment: { production: boolean }): Configuration => ({
   output: {
     path: path.resolve(__dirname, "dist"),
     filename: "[name].[contenthash:8].js",
-    publicPath: '/',
+    publicPath: "/",
   },
   devServer: {
     historyApiFallback: true,
