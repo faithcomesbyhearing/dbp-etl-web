@@ -151,7 +151,7 @@ function Artifacts() {
             <thead>
               <tr>
                 <th>Date</th>
-                <th>Path</th>
+                <th>Folder</th>
                 <th>User</th>
                 <th>Status</th>
               </tr>
@@ -249,7 +249,7 @@ function ArtifactFolder({ prefix, metadata }: { prefix: any; metadata: any }) {
               ) : (
                 artifacts.map(({ key, url }) => (
                   <dd key={key}>
-                    <a href={url}>{key}</a>
+                    <a href={url} target="_blank">{key}</a>
                   </dd>
                 ))
               )}
