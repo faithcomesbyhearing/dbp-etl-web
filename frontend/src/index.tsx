@@ -31,6 +31,7 @@ import {
 } from "./aws";
 import { useAsync } from "./hooks";
 import { debounce } from "debounce";
+import bibleBrain from "./BibleBrain.svg";
 
 render(<App />, document.getElementById("app"));
 
@@ -50,13 +51,11 @@ function App() {
       <RecoilRoot>
         <MemoryRouter>
           <Suspense fallback={"Loading..."}>
-            <div>
-              <h1>DBP-ETL</h1>
-              <p>v{process.env.VERSION}</p>
+            <div style={{ display: 'flex', flexDirection: 'column' }}>
+              <img src={bibleBrain} style={{ maxWidth: '20rem' }} />
+              <h3>DBP ETL Web v{process.env.VERSION}</h3>
               <nav>
-                <Link to={{ pathname: "/", key: `${Math.random()}` }}>
-                  Upload
-                </Link>
+                <Link to={{ pathname: "/", key: `${Math.random()}` }}>Upload</Link>
                 {" | "}
                 <Link to="/artifacts">Artifacts</Link>
                 {" | "}
@@ -448,14 +447,16 @@ function Upload() {
         />
         <p>{isDragActive ? "Drop here" : "Drag here"}</p>
       </div>
-      <details>
-        <summary>{files.length} Files</summary>
-        <ul>
-          {files.map((file) => (
-            <li key={file.path}>{file.path}</li>
-          ))}
-        </ul>
-      </details>
+      {files.length > 0 && (
+        <details>
+          <summary>{files.length} Files</summary>
+          <ul>
+            {files.map((file) => (
+              <li key={file.path}>{file.path}</li>
+            ))}
+          </ul>
+        </details>
+      )}
       <ul>
         {validations.map((validation) => (
           <li key={validation}>{validation}</li>

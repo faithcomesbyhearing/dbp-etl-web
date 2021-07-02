@@ -47,6 +47,10 @@ export default (environment: { production: boolean }): Configuration => ({
           },
         },
       },
+      {
+        test: /\.svg$/,
+        type: 'asset/resource',
+      },
     ],
   },
   plugins: [
