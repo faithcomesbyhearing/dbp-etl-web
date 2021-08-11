@@ -32,6 +32,7 @@ import {
 import { useAsync } from "./hooks";
 import { debounce } from "debounce";
 import bibleBrain from "./BibleBrain.svg";
+import pLimit from 'p-limit';
 
 render(<App />, document.getElementById("app"));
 
@@ -669,8 +670,10 @@ async function uploadFiles(
     throw new Error("File paths must start /. Did you drag and drop a folder?");
   }
 
+  const limit = pLimit(25);
+
   await Promise.all(
-    files.map(async (file) => {
+    files.map((file) => limit(async () => {
       const upload = new S3Upload({
         client: s3Client,
         params: {
@@ -693,7 +696,7 @@ async function uploadFiles(
         throw new Error(`Error uploading ${file.name}`);
       }
       setUploadingMessage(`Uploading ${--remaining} files`);
-    })
+    }))
   );
 
   setUploadingMessage(`Finished Uploading`);

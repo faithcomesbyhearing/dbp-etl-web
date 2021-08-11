@@ -1,6 +1,6 @@
 {
   "name": "dbp-etl",
-  "version": "0.0.11",
+  "version": "0.0.12",
   "license": "UNLICENSED",
   "scripts": {
     "start": "webpack serve",
@@ -45,6 +45,7 @@
     "@aws-sdk/s3-request-presigner": "3",
     "@types/debounce": "^1.2.0",
     "debounce": "^1.2.1",
+    "p-limit": "^2.3.0",
     "react": "17",
     "react-dom": "17",
     "react-dropzone": "11",
