@@ -60,6 +60,7 @@ export const handler = async (event: any) => {
     .leftJoin({ englishLanguageTranslation: "language_translations" }, {
       "englishLanguageTranslation.language_translation_id": 6414,
       "englishLanguageTranslation.language_source_id": "bible.language_id",
+      "englishLanguageTranslation.priority": 9,
     })
     .leftJoin({ languageTranslation: "language_translations" }, {
       "languageTranslation.language_translation_id": "bible.language_id",
@@ -234,6 +235,7 @@ Subscribe: https://www.YouTube.com/user/Bibleis`;
         .leftJoin({ englishLanguageTranslation: "language_translations" }, {
           "englishLanguageTranslation.language_translation_id": 6414,
           "englishLanguageTranslation.language_source_id": "bible.language_id",
+          "englishLanguageTranslation.priority": 9,
         })
         .leftJoin({ languageTranslation: "language_translations" }, {
           "languageTranslation.language_translation_id": "bible.language_id",
