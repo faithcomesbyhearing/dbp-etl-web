@@ -46,11 +46,24 @@ google.options({ auth: oauth2Client });
 
 export const handler = async (event: any) => {
   roleAssumedPromise && await roleAssumedPromise;
+
+  let limit = event.limit ?? (parseInt(process.env.LIMIT!) || Infinity);
+
   const uploadedFileIds = db("bible_file_tags")
     .select("file_id")
     .where({ "tag": "youtube_video_id" });
+  const lumoFilmFileIds = db({ tag: "bible_fileset_tags" })
+    .join({ file: "bible_files" }, { "file.hash_id": "tag.hash_id" })
+    .where({ "tag.name": "stock_no" })
+    .where(function() {
+      this.where("tag.description", "LIKE", "%LPF")
+        .orWhere("tag.description", "LIKE", "%LCF")
+        .orWhere("tag.description", "LIKE", "%LEF")
+    })
+    .select("file.id");
   const toBeUploaded = (await db({ file: "bible_files" })
     .whereNotIn("file.id", uploadedFileIds)
+    .whereNotIn("file.id", lumoFilmFileIds)
     .where({ "fileset.set_type_code": "video_stream" })
     .join({ fileset: "bible_filesets" }, { "fileset.hash_id": "file.hash_id" })
     .join({ copyright: "bible_fileset_copyrights" }, { "copyright.hash_id": "file.hash_id" })
@@ -102,15 +115,13 @@ export const handler = async (event: any) => {
       bibleTranslation: "bibleTranslation.name",
       bookTranslation: "bookTranslation.name",
       englishBookTranslation: "englishBookTranslation.name",
-    }))
+    }).limit(limit))
 
   const channelTitle = (await youtube.channels.list({ mine: true, part: ["snippet"] })).data.items?.[0].snippet?.title;
   assert(channelTitle);
   console.log(`Uploading videos to ${channelTitle}`);
 
   const uploadedFilesets: { filesetId: string, bookId: string }[] = [];
-
-  let limit = event.limit ?? (parseInt(process.env.LIMIT!) || Infinity);
 
   for (const {
     fileId,
@@ -180,7 +191,7 @@ Subscribe: https://www.YouTube.com/user/Bibleis`;
         media: { body: stream },
       });
       const videoId = response.data.id;
-      console.log(`Uploaded https://www.youtube.com/watch?v=${videoId}`);
+      console.log(`Uploaded https://www.youtube.com/watch?v=${videoId} (${title})`);
 
       await db("bible_file_tags").insert({
         file_id: fileId,
@@ -200,8 +211,9 @@ Subscribe: https://www.YouTube.com/user/Bibleis`;
 
   console.log(`Checking playlists for ${JSON.stringify(uploadedFilesets)}`);
 
-  for (const { filesetId, bookId } of [...(event.uploadedFilesets || []), ...uploadedFilesets]) {
-    console.log(`Checking if fileset ${filesetId}/${bookId} is completed`);
+  let playlists: any[] = [];
+  await Promise.all([...(event.uploadedFilesets || []), ...uploadedFilesets].map(async ({ filesetId, bookId }) => {
+    console.log(filesetId, `Checking if fileset ${filesetId}/${bookId} is completed`);
     const uploadedFileIds = db("bible_file_tags")
       .select("file_id")
       .where({ tag: "youtube_video_id" });
@@ -219,7 +231,7 @@ Subscribe: https://www.YouTube.com/user/Bibleis`;
       .select({ hashId: "hash_id" })
       .first();
     if (fileCount > 0 && uploadedFileCount === fileCount) {
-      console.log(`Creating playlist for ${filesetId} (${fileCount}/${uploadedFileCount} uploaded)`);
+      console.log(filesetId, `Creating playlist for ${filesetId} (${fileCount}/${uploadedFileCount} uploaded)`);
 
       const {
         englishLanguageTranslation,
@@ -277,7 +289,8 @@ Subscribe: https://www.YouTube.com/user/Bibleis`;
           }
         },
       })).data.id;
-      console.log(`Created playlist ${playlistId} ("${playlistTitle}")`);
+      assert(playlistId);
+      console.log(filesetId, `Created playlist ${playlistId} ("${playlistTitle}")`);
 
       await db("bible_fileset_tags").insert({
         hash_id: hashId,
@@ -287,10 +300,11 @@ Subscribe: https://www.YouTube.com/user/Bibleis`;
         iso: 'eng',
         language_id: 6414,
       }).onConflict().merge();
-      console.log(`Tagged ${filesetId} (hash: ${hashId}) with youtube_playlist_id:${bookId} of ${playlistId}`);
+      console.log(filesetId, `Tagged ${filesetId} (hash: ${hashId}) with youtube_playlist_id:${bookId} of ${playlistId}`);
 
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      await new Promise(resolve => setTimeout(resolve, 5000));
 
+      let videoIds: string[] = [];
       for (const { videoId } of await db({ file: "bible_files" })
         .join({ tag: "bible_file_tags" }, { "tag.file_id": "file.id" })
         .where({ "tag.tag": "youtube_video_id" })
@@ -298,20 +312,22 @@ Subscribe: https://www.YouTube.com/user/Bibleis`;
         .where({ "fileset.id": filesetId })
         .where({ "file.book_id": bookId })
         .select({ videoId: "tag.value" })) {
-        await new Promise(resolve => setTimeout(resolve, 1000));
+        videoIds.push(videoId);
+        await new Promise(resolve => setTimeout(resolve, 10000));
 
         const existingSnippet = (await youtube.videos.list({
           part: ["snippet"],
           id: [videoId],
         })).data.items?.[0]?.snippet;
-        console.log(`Found existing video "${existingSnippet?.title}"`);
+        console.log(filesetId, `Found existing video "${existingSnippet?.title}"`);
 
         if (!existingSnippet) {
-          console.log(`ERROR Unable to find video ${videoId}`);
+          console.log(filesetId, `ERROR Unable to find video ${videoId}`);
           continue;
         }
 
         try {
+          console.log(filesetId, `Adding video ${videoId} to playlist ${playlistId}`);
           await youtube.playlistItems.insert({
             part: ["snippet"],
             requestBody: {
@@ -324,7 +340,7 @@ Subscribe: https://www.YouTube.com/user/Bibleis`;
               },
             },
           });
-          console.log(`Added video ${videoId} to playlist ${playlistId}`);
+          console.log(filesetId, `Added video ${videoId} to playlist ${playlistId}`);
           await youtube.videos.update({
             part: ["snippet"],
             requestBody: {
@@ -336,15 +352,18 @@ Subscribe: https://www.YouTube.com/user/Bibleis`;
               },
             },
           });
-          console.log(`Updated video ${videoId} description with playlist URL`);
+          console.log(filesetId, `Updated video ${videoId} description with playlist URL`);
         } catch (e) {
           console.log(e);
-          console.log(`ERROR Unable to add video ${videoId} to playlist ${playlistId}`);
-          console.log(`ERROR Unable to update video ${videoId} description with playlist URL`);
+          console.log(filesetId, `ERROR Unable to add video ${videoId} to playlist ${playlistId}`);
+          console.log(filesetId, `ERROR Unable to update video ${videoId} description with playlist URL`);
         }
       }
+
+      playlists.push({ filesetId, fileCount, playlistId });
     } else {
-      console.log(`Skipping ${filesetId}/${bookId}; only ${uploadedFileCount} uploaded of ${fileCount}`);
+      console.log(filesetId, `Skipping ${filesetId}/${bookId}; only ${uploadedFileCount} uploaded of ${fileCount}`);
     }
-  }
+  }));
+  console.log({ playlists });
 }
