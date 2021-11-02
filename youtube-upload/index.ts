@@ -310,7 +310,7 @@ Subscribe: https://www.YouTube.com/user/Bibleis`;
         }
 
         try {
-          console.log(await youtube.playlistItems.insert({
+          await youtube.playlistItems.insert({
             part: ["snippet"],
             requestBody: {
               snippet: {
@@ -321,7 +321,7 @@ Subscribe: https://www.YouTube.com/user/Bibleis`;
                 },
               },
             },
-          }));
+          });
           console.log(`Added video ${videoId} to playlist ${playlistId}`);
           await youtube.videos.update({
             part: ["snippet"],
