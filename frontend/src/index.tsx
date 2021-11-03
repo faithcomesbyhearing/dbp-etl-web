@@ -4,6 +4,7 @@ import { DescribeTasksCommand, RunTaskCommand } from "@aws-sdk/client-ecs";
 import { InvokeCommand } from "@aws-sdk/client-lambda";
 import {
   GetObjectCommand,
+  HeadObjectCommand,
   ListObjectsV2Command,
   PutObjectCommand,
 } from "@aws-sdk/client-s3";
@@ -433,6 +434,7 @@ function Upload() {
 
   return (
     <div>
+      <CompleteCheck />
       <h2>Upload</h2>
       <input
         value={prevalidate}
@@ -812,5 +814,39 @@ async function runValidateLambda(
     return payload;
   } catch {
     return ["Error running validator"];
+  }
+}
+
+async function getCompleteCheck() {
+  return {
+    modified: (await s3Client.send(new HeadObjectCommand({
+      Bucket: process.env.ARTIFACTS_BUCKET,
+      Key: "complete-check.html",
+    }))).LastModified!,
+    url: await getSignedUrl(
+      s3Client,
+      new GetObjectCommand({
+        Bucket: process.env.ARTIFACTS_BUCKET,
+        Key: "complete-check.html",
+      })
+    )
+  }
+}
+
+function CompleteCheck() {
+  const completeCheck = useAsync(getCompleteCheck);
+
+  if (completeCheck.loading) {
+    return (<p>Loading...</p>);
+  } else if (completeCheck.error) {
+    return (<p>Error: {completeCheck.error.message}</p>);
+  } else {
+    return (
+      <p>
+        <a href={completeCheck.value.url} target="_blank" rel="noopener noreferrer">Complete Check</a>
+        {" "}
+          ({completeCheck.value.modified.toLocaleString()})
+      </p>
+    );
   }
 }
