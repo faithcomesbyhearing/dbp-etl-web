@@ -274,7 +274,7 @@ Subscribe: https://www.YouTube.com/user/Bibleis`;
       const playlistTitle = [
         languageTranslation,
         bookTranslation,
-        englishLanguageTranslation || languageName,
+        languageTranslation !== (englishLanguageTranslation || languageName) && (englishLanguageTranslation || languageName),
         englishBookTranslation,
       ].filter(x => x).join(" | ");
 
