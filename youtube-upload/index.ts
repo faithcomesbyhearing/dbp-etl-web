@@ -204,7 +204,7 @@ Subscribe: https://www.YouTube.com/user/Bibleis`;
         uploadedFilesets.push({ filesetId, bookId });
       }
     } catch (e: any) {
-      console.log(`Done Uploading (${e?.errors?.[0]?.message})`)
+      console.log(`Done Uploading (${e?.errors?.[0]?.message || e})`)
       break;
     }
   }
