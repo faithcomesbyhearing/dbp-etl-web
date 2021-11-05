@@ -61,11 +61,16 @@ function App() {
                 {" | "}
                 <Link to="/artifacts">Artifacts</Link>
                 {" | "}
+                <Link to="/postvalidate">Postvalidate</Link>
+                {" | "}
                 <button onClick={() => Auth.signOut()}>Sign Out</button>
               </nav>
               <Switch>
                 <Route path="/artifacts">
                   <Artifacts />
+                </Route>
+                <Route path="/postvalidate">
+                  <Postvalidate />
                 </Route>
                 <Route
                   path="/retry/:uploadKey"
@@ -81,6 +86,37 @@ function App() {
         </MemoryRouter>
       </RecoilRoot>
     </ErrorBoundary>
+  );
+}
+
+function Postvalidate() {
+  const [postvalidate, setPostvalidate] = useState("");
+  const [output, setOutput] = useState("");
+  return (
+    <div>
+      <h2>Postvalidate</h2>
+      <input
+        value={postvalidate}
+        onChange={(event) => {
+          setPostvalidate(event.target.value);
+          runPostvalidate(event.target.value, setOutput);
+        }}
+        placeholder="Postvalidate"
+      />
+      <br />
+      {output && (
+        <iframe
+          srcDoc={output}
+          style={{ width: "100%" }}
+          scrolling={"no"}
+          onLoad={(e) => {
+            console.log(e.target);
+            e.target.style.height = `${e.target.contentWindow.document.body.scrollHeight + 20}px`;
+            e.target.style.width = `${e.target.contentWindow.document.body.scrollWidth + 20}px`;
+          }}
+        />
+      )}
+    </div>
   );
 }
 
@@ -814,6 +850,31 @@ async function runValidateLambda(
     return payload;
   } catch {
     return ["Error running validator"];
+  }
+}
+
+const runPostvalidate = debounce(
+  async (filesetId: string, setOutput: (output: string) => void) => {
+    const output = await runPostvalidateLambda(filesetId);
+    setOutput(output);
+  },
+  1000
+);
+
+async function runPostvalidateLambda(filesetId: string): Promise<string> {
+  try {
+    const result = await lambdaClient.send(
+      new InvokeCommand({
+        FunctionName: process.env.POSTVALIDATE_LAMBDA,
+        Payload: new TextEncoder().encode(JSON.stringify({ filesetId })),
+      })
+    );
+    const payload = JSON.parse(new TextDecoder("utf-8").decode(result.Payload));
+    if (payload.errorMessage) return payload.errorMessage;
+    return payload;
+  } catch (e) {
+    console.error(e);
+    return "error";
   }
 }
 
