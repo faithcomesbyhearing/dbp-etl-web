@@ -1,3 +1,3 @@
 [submodule "dbp-etl"]
 	path = image/dbp-etl
-	url = https://github.com:faithcomesbyhearing/dbp-etl.git
+	url = https://github.com/faithcomesbyhearing/dbp-etl.git
