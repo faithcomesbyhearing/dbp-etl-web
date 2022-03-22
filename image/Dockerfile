@@ -1,4 +1,4 @@
-FROM alpine:latest AS BiblePublisher
+FROM public.ecr.aws/docker/library/alpine:latest AS BiblePublisher
 
 WORKDIR /app
 
@@ -7,7 +7,7 @@ RUN apk add g++ gcc git make musl-dev npm python2
 RUN git clone https://github.com/garygriswold/BiblePublisher
 RUN cd BiblePublisher; npm i sqlite3
 
-FROM alpine:latest
+FROM public.ecr.aws/docker/library/alpine:latest
 
 WORKDIR /app
 
