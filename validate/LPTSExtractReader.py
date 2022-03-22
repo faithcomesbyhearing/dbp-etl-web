@@ -38,11 +38,28 @@ class LPTSExtractReader:
 								resultRow[fldNode.nodeName] = fldNode.firstChild.nodeValue
 
 						self.resultSet.append(LPTSRecord(resultRow))
+		self.checkRecordCount()
 		self.bibleIdMap = self.getBibleIdMap()
 		self.filesetIdMap = None
 		self.filesetIdMap10 = None
 		self.stockNumMap = None
 		print("LPTS Extract with %d records and %d BibleIds is loaded." % (len(self.resultSet), len(self.bibleIdMap.keys())))
+
+
+	# Check the record count against prior run to make certain we have the entire file. And save new record count.
+	def checkRecordCount(self):
+		filename = os.path.expanduser("~") + "/dbp-etl-LPTS_count.txt"
+		nowCount = len(self.resultSet)
+		if os.path.isfile(filename):
+			with open(filename, "r") as cntIn:
+				priorCount = cntIn.read().strip()
+				if priorCount.isdigit():
+					if (int(priorCount) - nowCount) > 50:
+						print("FATAL: %s is too small. Prior run was %s records. Now it has %d records. This count is stored at %s" 
+							% (self.lptsExtractPath, priorCount, nowCount, filename))
+						sys.exit()
+		with open(filename, "w") as cntOut:
+			cntOut.write(str(nowCount))
 
 
     ## Generates Map bibleId: [(index, LPTSRecord)], called by class init
@@ -96,7 +113,7 @@ class LPTSExtractReader:
 		return (None, None)
 
 
-	## This method is a hack, because in LPTS a text damId is 10 char,
+	## This method is a hack, because in LPTS a text damId is 10 char, 
 	## but in DBP it is 6 char, when searching LPTS the same text damid
 	## can be found in multiple record, but there is no way to know
 	## which is correct.
@@ -129,7 +146,7 @@ class LPTSExtractReader:
 					#return(record, index)
 					results.append((record, index))
 		#return (None, None)
-		return results
+		return results		
 
 
 	## This is a more permissive way to get LPTS Records, it does not require
@@ -170,7 +187,7 @@ class LPTSExtractReader:
 	## It also removes excess characters for filesets and corrects for SA types.
 	## This method does not return the 1, 2, 3 index
 	## It returns an array of statuses and records, i.e. Set((lptsRecord, status, fieldName))
-	def getFilesetRecords10(self, filesetId):
+	def getFilesetRecords10(self, filesetId):	
 		if self.filesetIdMap10 == None:
 			self.filesetIdMap10 = {}
 			damIdDict = {**LPTSRecord.audio1DamIdDict,
@@ -192,7 +209,7 @@ class LPTSExtractReader:
 					self.filesetIdMap10[damId] = statuses
 		damId = filesetId[:10]
 		if len(damId) == 10 and damId[-2:] == "SA":
-			damId = damId[:8] + "DA";
+			damId = damId[:8] + "DA";	
 		return self.filesetIdMap10.get(damId, None)
 
 
@@ -268,14 +285,14 @@ class LPTSRecord:
 	}
 	text2DamIdDict = {
 		"ND_NTTextDamID2": 		"ND_NTTextDamIDStatus2",
-		"ND_OTTextDamID2": 		"ND_OTTextDamIDStatus2",
+		"ND_OTTextDamID2": 		"ND_OTTextDamIDStatus2", 
 		"Reg_NTTextDamID2": 	"Reg_NTTextDamIDStatus2",
 		"Reg_OTTextDamID2": 	"Reg_OTTextDamIDStatus2"
 	}
 	text3DamIdDict = {
 		"ND_NTTextDamID3": 		"ND_NTTextDamIDStatus3",
 		"ND_OTTextDamID3": 		"ND_OTTextDamIDStatus3",
-		"Reg_NTTextDamID3": 	"Reg_NTTextDamIDStatus3",
+		"Reg_NTTextDamID3": 	"Reg_NTTextDamIDStatus3", 
 		"Reg_OTTextDamID3": 	"Reg_OTTextDamIDStatus3"
 	}
 	videoDamIdDict = {
@@ -285,7 +302,7 @@ class LPTSRecord:
 		"Video_Matt_DamStockNo": "Video_Matt_DamStatus",
 		"Video_DamStockNo2": "Video_DamStatus2"
 	}
-
+	
 	def __init__(self, record):
 		self.record = record
 
@@ -297,7 +314,7 @@ class LPTSRecord:
 		damIdMap = self.DamIdMap(typeCode, index)
 		results = set()
 		for (damId, status) in damIdMap.items():
-			if status in {"Live", "live"}:
+			if status in {"Live", "live", None}:
 				results.add(damId)
 		return results
 
@@ -500,7 +517,7 @@ class LPTSRecord:
 			return self.DBP_Equivalent3()
 		else:
 			print("ERROR: DBP_Equivalent index must be 1, 2, or 3.")
-			sys.exit()
+			sys.exit()			
 
 	def Download(self):
 		return self.record.get("Download")
@@ -680,3 +697,112 @@ class LPTSRecord:
 
 	def WebHubVideo(self):
 		return self.record.get("WebHubVideo")
+
+"""
+*********************************************************
+*** Everything below here is intended for unit test only.
+*********************************************************
+"""
+
+"""
+# Get listing of damIds, per stock no
+if __name__ == '__main__':
+	config = Config.shared()
+	reader = LPTSExtractReader(config.filename_lpts_xml)
+	for lptsRecord in reader.resultSet:
+		stockNo = lptsRecord.Reg_StockNumber()
+		for typeCode in ["audio", "text", "video"]:
+			mediaDamIds = []
+			indexes = [1] if typeCode == "video" else [1,2,3]
+			for index in indexes:
+				damIds = lptsRecord.DamIdMap(typeCode, index)
+				if len(damIds) > 0:
+					print(stockNo, typeCode, index, damIds.keys())
+"""
+
+"""
+# Get alphabetic list distinct field names
+if (__name__ == '__main__'):
+	fieldCount = {}
+	config = Config()
+	reader = LPTSExtractReader(config)
+	for lptsRecord in reader.resultSet:
+		record = lptsRecord.record
+		for fieldName in record.keys():
+			#print(fieldName)
+			count = fieldCount.get(fieldName, 0)
+			count += 1
+			fieldCount[fieldName] = count
+	for fieldName in sorted(fieldCount.keys()):
+		count = fieldCount[fieldName]
+		print("%s,%s" % (fieldName, count))
+"""
+
+"""
+if (__name__ == '__main__'):
+	config = Config()
+	reader = LPTSExtractReader(config)
+	reader.getFieldNames()
+"""
+"""
+if (__name__ == '__main__'):
+	config = Config()
+	reader = LPTSExtractReader(config)
+	for rec in reader.resultSet:
+		for index in [1, 2, 3]:
+			print(rec.Reg_StockNumber(), index)
+			#prefixSet = set()
+			for typeCode in ["text", "audio", "video"]:
+				if typeCode != "video" or index == 1:
+					damidSet = rec.DamIds2(typeCode, index)
+					if len(damidSet) > 0:
+						print(typeCode, index, damidSet)
+						#for damid in damidSet:
+						#	prefixSet.add(damid[:6])
+			#if len(prefixSet) > 1:
+			#	print("ERROR: More than one DamId prefix in set %s" % (",".join(prefixSet)))
+"""
+"""
+# Find bible_ids that exist in multiple stock numbers
+# Find stock numbers that contain multiple bible_ids
+if (__name__ == '__main__'):
+	bibleIdMap = {}
+	config = Config()
+	reader = LPTSExtractReader(config)
+	for rec in reader.resultSet:
+		#print(rec.Reg_StockNumber(), rec.DBP_Equivalent(), rec.DBP_Equivalent2())
+		#if len(rec.Reg_StockNumber()) != 9:
+		#	print("Different Stocknumber", rec.Reg_StockNumber())
+		stockNo = rec.Reg_StockNumber()
+		bibleId1 = rec.DBP_Equivalent()
+		bibleId2 = rec.DBP_Equivalent2()
+		#if bibleId2 != None:
+		#	print("StockNo:", stockNo, "BibleId 1:", bibleId1, "BibleId 2:", bibleId2)
+		#if bibleId1 in bibleIdMap.keys():
+		#	priorStockNum = bibleIdMap[bibleId1]
+		#	print("StockNo:", stockNo, "StockNo:", priorStockNum, "BibleId1:", bibleId1)
+		if bibleId2 in bibleIdMap.keys():
+			priorStockNum = bibleIdMap[bibleId2]
+			print("StockNo:", stockNo, "StockNo:", priorStockNum, "BibleId2:", bibleId2)
+		if bibleId1 != None:
+			bibleIdMap[bibleId1] = stockNo
+		if bibleId2 != None:
+			bibleIdMap[bibleId2] = stockNo
+"""
+
+
+if (__name__ == '__main__'):
+	from Config import *
+	result = {}
+	config = Config()
+	reader = LPTSExtractReader(config.filename_lpts_xml)
+	for rec in reader.resultSet:
+		textDamIds = rec.DamIdList("text")
+		textDamIds = rec.ReduceTextList(textDamIds)
+		#if len(textDamIds) > 1:
+		#	print(textDamIds)
+		listDamIds = list(textDamIds)
+		if len(listDamIds) > 1 and listDamIds[0][0][:6] != listDamIds[1][0][:6]:
+			print(rec.Reg_StockNumber(), listDamIds)
+
+

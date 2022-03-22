@@ -4,6 +4,7 @@
 import io
 import math
 import unicodedata
+from Config import *
 from LPTSExtractReader import *
 
 class UnicodeScript:
@@ -41,6 +42,7 @@ class UnicodeScript:
 
 	## Downloads an objects, returns content as an array of lines, but discards first 10 lines
 	def readObject(self, s3Client, location, filePath):
+		//print("UnicodeScript:readObject. location: %s, filepath: %s" % (location, filePath))
 		if location.startswith("s3://"):
 			s3Bucket = location[5:]
 			response = s3Client.get_object(Bucket=s3Bucket, Key=filePath)
@@ -48,7 +50,7 @@ class UnicodeScript:
 			lines = content.split("\n") if content != None else []
 			lines = lines[10:] # discard first 10 lines
 		else:
-			file = open(filePath, mode='r', encoding="utf-8")
+			file = open(location +'/'+filePath, mode='r', encoding="utf-8")
 			lines = file.readlines()
 			file.close()
 			lines = lines[10:] # discard first 10 lines
@@ -146,3 +148,83 @@ class UnicodeScript:
 					#print("******* No match for", damId, fileScript, index, lptsScript)
 					self.errors.append("Script code incorrect in %s for damId %s; Change %s to %s" % (stockNo, damId, lptsScript, fileScript))
 		return self.errors
+
+
+if (__name__ == '__main__'):
+	import time
+	import boto3
+	import csv
+	from AWSSession import *
+	from SQLUtility import *
+
+	config = Config.shared()
+	db = SQLUtility(config)
+	s3Client = AWSSession.shared().s3Client
+	lptsReader = LPTSExtractReader(config.filename_lpts_xml)
+	unicodeScript = UnicodeScript()
+	setTypeCode = 'text_plain'
+	#setTypeCode = 'text_format'
+
+	with open("UnicodeScript.csv", 'w', newline='\n') as csvfile:
+		writer = csv.writer(csvfile, delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL)
+		writer.writerow(("OK/NOT", "stockNo", "bibleId", "filesetId6", "index", "sample text", "actual script", "pct match", "lpts script", "message"))
+
+		for lptsRecord in lptsReader.resultSet:
+			stockNo = lptsRecord.Reg_StockNumber()
+			damIdList = lptsRecord.DamIdList("text")
+			#print(damIdList)
+			damIdList = lptsRecord.ReduceTextList(damIdList)
+			for (damId, index, status) in damIdList:
+				if status in { "Live", "live" }:
+					bibleId = lptsRecord.DBP_EquivalentByIndex(index)
+					lptsScript = lptsRecord.Orthography(index)
+					print(stockNo, damId, index, bibleId)
+					message = None
+					if lptsScript == None:
+						message = "No LPTS Script"
+
+					if setTypeCode == "text_format":
+						objKey = "text/%s/%s" % (bibleId, filesetId[:6])
+						fileKeys = unicodeScript.getFilenames(s3Client, "s3://dbp-prod", objKey)
+						#print("fileKeys", fileKeys)
+						if len(fileKeys) == 0:
+							message = "DBP has no files"
+						
+						pos = 1 # skip first file
+						lines = []
+						while len("".join(lines)) < 2000 and len(fileKeys) > pos:
+							filename = fileKeys[pos]
+							if filename.endswith(".html") and not filename.endswith("about.html") and not filename.endswith("index.html"):
+								lines += unicodeScript.readObject(s3Client, "s3://dbp-prod", objKey + "/" + filename)
+							pos += 1
+						textList = unicodeScript.parseXMLStrings(lines)
+
+					elif setTypeCode == "text_plain":
+						sql = "SELECT verse_text FROM bible_verses WHERE hash_id IN (SELECT hash_id FROM bible_filesets WHERE id = %s) limit 10"
+						sampleText = db.selectList(sql, (damId[:6],))
+
+						if len(sampleText) == 0 and message == None:
+							message = "No verse text"
+							textList = []
+						else:
+							textList = unicodeScript.textToArray(sampleText)
+
+					print("text", "".join(textList[:60]))
+
+					(fileScript, pctMatch) = unicodeScript.findScript(textList)
+					print("fileScript", fileScript, pctMatch)
+					lptsScript = lptsRecord.Orthography(index)
+					if lptsScript == None:
+						message = "No LPTS Script"
+
+					isMatch = unicodeScript.matchScripts(fileScript, lptsScript)
+					if isMatch:
+						print("******* MATCH", bibleId, damId, fileScript, index)
+						matchAns = "OK"
+					else:
+						print("******* No match for", bibleId, damId, fileScript, index, lptsScript)
+						matchAns = "NOT"
+						if message == None:
+							message = "Mismatch"
+
+					writer.writerow((matchAns, stockNo, bibleId, damId, index, "".join(textList[:20]), fileScript, str(pctMatch) + "%", lptsScript, message))
