@@ -47,20 +47,29 @@ class LPTSExtractReader:
 
 
 	# Check the record count against prior run to make certain we have the entire file. And save new record count.
+	# Check the record count against prior run to make certain we have the entire file. And save new record count.
 	def checkRecordCount(self):
-		filename = os.path.expanduser("~") + "/dbp-etl-LPTS_count.txt"
-		nowCount = len(self.resultSet)
-		if os.path.isfile(filename):
-			with open(filename, "r") as cntIn:
-				priorCount = cntIn.read().strip()
-				if priorCount.isdigit():
-					if (int(priorCount) - nowCount) > 50:
-						print("FATAL: %s is too small. Prior run was %s records. Now it has %d records. This count is stored at %s" 
-							% (self.lptsExtractPath, priorCount, nowCount, filename))
-						sys.exit()
-		with open(filename, "w") as cntOut:
-			cntOut.write(str(nowCount))
-
+		try:
+			filename = "/tmp/dbp-etl-LPTS_count.txt"
+			nowCount = len(self.resultSet)
+			if os.path.isfile(filename):
+				with open(filename, "r") as cntIn:
+					priorCount = cntIn.read().strip()
+					if priorCount.isdigit():
+						if (int(priorCount) - nowCount) > 50:
+							print("FATAL: %s is too small. Prior run was %s records. Now it has %d records. This count is stored at %s" 
+								% (self.lptsExtractPath, priorCount, nowCount, filename))
+							sys.exit()
+						else:
+							print("LPTS Size. Prior: %s, Current: %s" % (priorCount, nowCount))
+			else:
+				print("first run of LPTS Reader -- did not find %s" % (filename))
+				
+			with open(filename, "w") as cntOut:
+				cntOut.write(str(nowCount))
+				#print("wrote count %s to file %s" % (nowCount, filename))
+		except FileNotFoundError:
+			print("Exception: first run of LPTS Reader -- did not find %s" % (filename))
 
     ## Generates Map bibleId: [(index, LPTSRecord)], called by class init
 	def getBibleIdMap(self):
@@ -268,7 +277,7 @@ class LPTSRecord:
 		"Reg_CAudioDamID2": 	"Reg_CAudioDamIDStatus2", # No occurrances 2/20/2020
 		"Reg_NTAudioDamID2": 	"Reg_NTAudioDamIDStatus2",
 		"Reg_OTAudioDamID2": 	"Reg_OTAudioDamIDStatus2"
-	}
+	}	
 	audio3DamIdDict = { # No occurrances 2/20/2020
 		"ND_CAudioDamID3": 		"ND_CAudioDamIDStatus3",
 		"ND_NTAudioDamID3": 	"ND_NTAudioDamIDStatus3",

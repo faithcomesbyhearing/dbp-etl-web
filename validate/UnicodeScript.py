@@ -4,7 +4,6 @@
 import io
 import math
 import unicodedata
-from Config import *
 from LPTSExtractReader import *
 
 class UnicodeScript:
@@ -42,7 +41,7 @@ class UnicodeScript:
 
 	## Downloads an objects, returns content as an array of lines, but discards first 10 lines
 	def readObject(self, s3Client, location, filePath):
-		//print("UnicodeScript:readObject. location: %s, filepath: %s" % (location, filePath))
+		print("UnicodeScript:readObject. location: %s, filepath: %s" % (location, filePath))
 		if location.startswith("s3://"):
 			s3Bucket = location[5:]
 			response = s3Client.get_object(Bucket=s3Bucket, Key=filePath)
@@ -55,7 +54,7 @@ class UnicodeScript:
 			file.close()
 			lines = lines[10:] # discard first 10 lines
 		#print("read", lines)
-		return lines
+		return lines	
 
 
 	## Parses XML contents and returns an array of characters
@@ -81,9 +80,9 @@ class UnicodeScript:
 				if char.isalpha():
 					text.append(char)
 		return text
-
-
-	## Returns the script code of text based upon results returned by unicodedata
+				
+		
+	## Returns the script code of text based upon results returned by unicodedata	
 	def findScript(self, text):
 		scriptSet = {}
 		for c in text:
@@ -154,6 +153,7 @@ if (__name__ == '__main__'):
 	import time
 	import boto3
 	import csv
+	from Config import *	
 	from AWSSession import *
 	from SQLUtility import *
 
@@ -228,3 +228,4 @@ if (__name__ == '__main__'):
 							message = "Mismatch"
 
 					writer.writerow((matchAns, stockNo, bibleId, damId, index, "".join(textList[:20]), fileScript, str(pctMatch) + "%", lptsScript, message))
+
