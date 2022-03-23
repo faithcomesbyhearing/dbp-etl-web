@@ -9,8 +9,8 @@ node_modules: package.json
 > touch -c $@
 
 # DEV
-# DISTRIBUTION_ID := E253B8YKTMDS2Q
-# ORIGIN_BUCKET := dbp-etl-origin-dev-zrg0q2rhv7shv7hr
+DISTRIBUTION_ID := E1LWC71B1R7XQY
+ORIGIN_BUCKET := dbp-etl-origin-dev-ya1mbvdty8tlq15r
 
 # NEWDATA
 # DISTRIBUTION_ID := ELSN9V9QXE94I
@@ -18,10 +18,10 @@ node_modules: package.json
 
 .PHONY: sync
 sync: dist
-> aws s3 rm s3://$(ORIGIN_BUCKET) --recursive
-> aws s3 cp dist/main.*.js s3://$(ORIGIN_BUCKET) --cache-control 'public, max-age=604800, immutable'
-> aws s3 cp dist/*.svg s3://$(ORIGIN_BUCKET) --cache-control 'public, max-age=604800, immutable'
-> aws s3 cp dist/index.html s3://$(ORIGIN_BUCKET) --cache-control 'no-store, max-age=0'
+> aws s3 rm s3://$(ORIGIN_BUCKET) --recursive --profile dbp-dev
+> aws s3 cp dist/main.*.js s3://$(ORIGIN_BUCKET) --cache-control 'public, max-age=604800, immutable' --profile dbp-dev
+> aws s3 cp dist/*.svg s3://$(ORIGIN_BUCKET) --cache-control 'public, max-age=604800, immutable' --profile dbp-dev
+> aws s3 cp dist/index.html s3://$(ORIGIN_BUCKET) --cache-control 'no-store, max-age=0' --profile dbp-dev
 
 .PHONY: clean
 clean:

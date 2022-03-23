@@ -874,7 +874,7 @@ async function runPostvalidateLambda(filesetId: string): Promise<string> {
     return payload;
   } catch (e) {
     console.error(e);
-    return "error";
+    return "error invoking postvalidate lambda: (" + process.env.POSTVALIDATE_LAMBDA + ")";
   }
 }
 
