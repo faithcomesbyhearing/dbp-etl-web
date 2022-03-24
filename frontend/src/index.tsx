@@ -731,7 +731,7 @@ async function uploadFiles(
         await upload.done();
       } catch (e) {
         console.error(e);
-        throw new Error(`Error uploading ${file.name}`);
+        throw new Error(`Error uploading ${uploadKey}${file.path}`);
       }
       setUploadingMessage(`Uploading ${--remaining} files`);
     }))
