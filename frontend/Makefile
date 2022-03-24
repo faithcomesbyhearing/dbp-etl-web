@@ -1,6 +1,6 @@
 include ../boilerplate.mk
 
-dist: node_modules $(shell find src) webpack.config.ts .env
+dist: node_modules $(shell find src) webpack.config.ts
 > npm run build
 > touch -c $@
 
