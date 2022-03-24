@@ -1,7 +1,7 @@
 version: 0.2
 
 phases:
-  prebuild:
+  pre_build:
     commands:
       - aws s3 cp s3://$(ORIGIN_BUCKET)/.env frontend/
   build:
