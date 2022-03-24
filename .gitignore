@@ -4,3 +4,5 @@
 frontend/dist
 node_modules
 terraform.tfstate*
+frontend/.env-dev
+frontend/.env-newdata
