@@ -553,7 +553,7 @@ async function* runTask(
         platformVersion: "1.4.0",
         networkConfiguration: {
           awsvpcConfiguration: {
-            subnets: JSON.parse(process.env.ECS_SUBNETS!),
+            subnets: [process.env.ECS_SUBNETS!],
             securityGroups: [process.env.ECS_SECURITY_GROUP!],
             assignPublicIp: "ENABLED",
           },
