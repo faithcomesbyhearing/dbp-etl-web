@@ -355,7 +355,7 @@ function Upload() {
           }
           setArtifacts(await getArtifacts(params.uploadKey));
         } catch (e) {
-          console.log('Upload Error:', e);
+          console.log('Error (358):', e);
           setError(e.message);
         }
       })();
@@ -384,6 +384,7 @@ function Upload() {
       }
       setArtifacts(await getArtifacts(uploadKey));
     } catch (e) {
+      console.log('error (387):', e);      
       setError(e.message);
     }
   }
@@ -409,6 +410,7 @@ function Upload() {
       }
       setArtifacts(await getArtifacts(uploadKey));
     } catch (e) {
+      console.log('Error in uploadLpts (413):', e);
       setError(e.message);
     }
   }
@@ -593,7 +595,7 @@ async function* runTask(
           yield [status, logs];
         }
       } catch (e) {
-        console.error(e);
+        console.log('Error in runTask (598):', e);
         yield [status, ""];
       }
     }
@@ -768,7 +770,7 @@ async function uploadLptsFile(
   try {
     await upload.done();
   } catch (e) {
-    console.error(e);
+    console.log(`Error uploading ${file.name}`, e);
     throw new Error(`Error uploading ${file.name}`);
   }
 
@@ -851,7 +853,7 @@ async function runValidateLambda(
     if (payload.errorMessage) return [payload.errorMessage];
     return payload;
   } catch (e) {
-    console.error(e);    
+    console.log('Error running validator (856):', e);
     return ["Error running validator"];
   }
 }
@@ -876,7 +878,7 @@ async function runPostvalidateLambda(filesetId: string): Promise<string> {
     if (payload.errorMessage) return payload.errorMessage;
     return payload;
   } catch (e) {
-    console.error(e);
+    console.error("error invoking postvalidate lambda: (" + process.env.POSTVALIDATE_LAMBDA + ")", e);
     return "error invoking postvalidate lambda: (" + process.env.POSTVALIDATE_LAMBDA + ")";
   }
 }
