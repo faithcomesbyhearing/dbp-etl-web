@@ -591,7 +591,7 @@ async function* runTask(
         const { events } = await logsClient.send(
           new GetLogEventsCommand({
             logGroupName: `/ecs/${process.env.ECS_CLUSTER}`,
-            logStreamName: `dbp-etl/dbp-etl/${taskId}`,
+            logStreamName: `dbp-etl/fargate/${taskId}`,
           })
         );
         const logs = events!.map((event) => event.message).join("\n");
