@@ -373,12 +373,15 @@ function Upload() {
       const uploadKey = await uploadFiles(files, setUploadingMessage);
       setUploading(false);
       setShowResults(true);
+      console.log("returned from uploadFiles... uploadKey:", uploadKey) // FIXME remove
       for await (const [status, logs] of runTask(uploadKey, [
         {
           name: "S3_KEY_PREFIX",
           value: uploadKey,
         },
       ])) {
+        console.log("calling setEcsTaskStatus with status: ", status) // FIXME remove
+
         setEcsTaskStatus(status);
         setEcsLogs(logs);
       }
@@ -745,6 +748,7 @@ async function uploadFiles(
 
   const path = findCommonPath(files);
   await updateMetadata(uploadKey, { path, user: await getUserEmail() }, true);
+  console.log("finished uploading. uploadKey:", uploadKey) // FIXME remove
   return uploadKey;
 }
 
