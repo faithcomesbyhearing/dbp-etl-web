@@ -728,7 +728,7 @@ async function uploadFiles(
           Bucket: process.env.UPLOAD_BUCKET,
           Key: `${uploadKey}${file.path}`,
           Body: file,
-          //ExtraArgs: {'ACL': 'bucket-owner-full-control'}
+          ACL: "bucket-owner-full-control"
         },
       });
       upload.on("httpUploadProgress", (progress) => {
@@ -772,6 +772,7 @@ async function uploadLptsFile(
     params: {
       Bucket: process.env.UPLOAD_BUCKET,
       Key: `${uploadKey}/lpts-dbp.xml`,
+      ACL: "bucket-owner-full-control",      
       Body: file,
     },
   });
