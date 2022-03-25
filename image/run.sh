@@ -55,6 +55,9 @@ database.port = ${DATABASE_PORT}
 database.db_name = ${DATABASE_DB_NAME}
 EOF
 
+echo "contents of dbp-etl.cfg: "
+cat /root/dbp-etl.cfg
+
 # audio.transcoder.output.1 = { "bucket": "${S3_BUCKET}", "key": "\$prefix-opus32", "bitrate": 32, "container": "webm", "codec": "opus" }
 # audio.transcoder.output.2 = { "bucket": "${S3_BUCKET}", "key": "\$prefix-mp3-32", "bitrate": 32, "container": "mp3", "codec": "mp3" }
 # audio.transcoder.output.3 = { "bucket": "${S3_BUCKET}", "key": "\$prefix-mp3-64", "bitrate": 64, "container": "mp3", "codec": "mp3" }

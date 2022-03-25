@@ -553,7 +553,7 @@ async function* runTask(
         platformVersion: "1.4.0",
         networkConfiguration: {
           awsvpcConfiguration: {
-            subnets: ["subnet-086d451813d884dd0","subnet-0121bcb20501551bb","subnet-0a2629118cf16bb5b"],
+            subnets: ["subnet-086d451813d884dd0","subnet-0121bcb20501551bb","subnet-0a2629118cf16bb5b"], // FIXME: populate from ECS_SUBNETS 
             securityGroups: [process.env.ECS_SECURITY_GROUP!],
             assignPublicIp: "ENABLED",
           },
