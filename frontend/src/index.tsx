@@ -540,6 +540,10 @@ async function* runTask(
   uploadKey: string,
   environment: { name: string; value: string }[]
 ) {
+  console.log("runTask.. uploadKey: ", uploadKey, ", environment: ", environment) // FIXME remove
+  console.log("runTask.. cluster: ", process.env.ECS_CLUSTER, ", taskDefinition: ", process.env.ECS_TASK) // FIXME remove
+  console.log("runTask.. ecs subnets: ", process.env.ECS_SUBNETS, ", security groups: ", [process.env.ECS_SECURITY_GROUP!]) // FIXME remove
+
   const task = (
     await ecsClient.send(
       new RunTaskCommand({
