@@ -355,6 +355,7 @@ function Upload() {
           }
           setArtifacts(await getArtifacts(params.uploadKey));
         } catch (e) {
+          console.log('Upload Error:', e);
           setError(e.message);
         }
       })();
@@ -718,6 +719,7 @@ async function uploadFiles(
           Bucket: process.env.UPLOAD_BUCKET,
           Key: `${uploadKey}${file.path}`,
           Body: file,
+          //ExtraArgs: {'ACL': 'bucket-owner-full-control'}
         },
       });
       upload.on("httpUploadProgress", (progress) => {
@@ -730,7 +732,7 @@ async function uploadFiles(
       try {
         await upload.done();
       } catch (e) {
-        console.error(e);
+        console.error(`Error uploading ${uploadKey}${file.path}`, e);
         throw new Error(`Error uploading ${uploadKey}${file.path}`);
       }
       setUploadingMessage(`Uploading ${--remaining} files`);
@@ -848,7 +850,8 @@ async function runValidateLambda(
     const payload = JSON.parse(new TextDecoder("utf-8").decode(result.Payload));
     if (payload.errorMessage) return [payload.errorMessage];
     return payload;
-  } catch {
+  } catch (e) {
+    console.error(e);    
     return ["Error running validator"];
   }
 }
