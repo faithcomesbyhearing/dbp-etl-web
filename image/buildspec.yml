@@ -9,6 +9,9 @@ phases:
     commands:
       - echo Build started on `date`
       - cd image
+      - git submodule set-branch --branch $SUBMODULE_BRANCH dbp-etl
+      - git submodule update --init --recursive --remote
+      - git submodule foreach 'echo $sm_path `git rev-parse HEAD`'
       - echo Building the Docker image...         
       - docker build -t dbp-etl .
       - docker tag dbp-etl:latest $IMAGE_REPO_URL:latest     

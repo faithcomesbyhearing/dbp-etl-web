@@ -1,0 +1,18 @@
+version: 0.2
+
+phases:
+  pre_build:
+    commands:
+      - aws s3 cp s3://$ORIGIN_BUCKET/.env frontend/
+  build:
+    commands:
+      - echo Build started on `date`
+      - cd frontend
+      - make dist 
+  post_build:
+    commands:
+      - echo Build completed on `date`
+      - echo cleaning S3 location prior to copy...
+      - aws s3 rm s3://$ORIGIN_BUCKET --recursive --exclude .env
+      - echo copying files to S3...
+      - aws s3 cp dist s3://$ORIGIN_BUCKET/ --recursive --cache-control 'public, max-age=604800, immutable'

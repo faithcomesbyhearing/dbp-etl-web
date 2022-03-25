@@ -355,6 +355,7 @@ function Upload() {
           }
           setArtifacts(await getArtifacts(params.uploadKey));
         } catch (e) {
+          console.log('Error (358):', e);
           setError(e.message);
         }
       })();
@@ -372,17 +373,21 @@ function Upload() {
       const uploadKey = await uploadFiles(files, setUploadingMessage);
       setUploading(false);
       setShowResults(true);
+      console.log("returned from uploadFiles... uploadKey:", uploadKey) // FIXME remove
       for await (const [status, logs] of runTask(uploadKey, [
         {
           name: "S3_KEY_PREFIX",
           value: uploadKey,
         },
       ])) {
+        console.log("calling setEcsTaskStatus with status: ", status) // FIXME remove
+
         setEcsTaskStatus(status);
         setEcsLogs(logs);
       }
       setArtifacts(await getArtifacts(uploadKey));
     } catch (e) {
+      console.log('error (387):', e);      
       setError(e.message);
     }
   }
@@ -408,6 +413,7 @@ function Upload() {
       }
       setArtifacts(await getArtifacts(uploadKey));
     } catch (e) {
+      console.log('Error in uploadLpts (413):', e);
       setError(e.message);
     }
   }
@@ -534,6 +540,10 @@ async function* runTask(
   uploadKey: string,
   environment: { name: string; value: string }[]
 ) {
+  console.log("runTask.. uploadKey: ", uploadKey, ", environment: ", environment) // FIXME remove
+  console.log("runTask.. cluster: ", process.env.ECS_CLUSTER, ", taskDefinition: ", process.env.ECS_TASK) // FIXME remove
+  console.log("runTask.. ecs subnets: ", process.env.ECS_SUBNETS, ", security groups: ", [process.env.ECS_SECURITY_GROUP!]) // FIXME remove
+
   const task = (
     await ecsClient.send(
       new RunTaskCommand({
@@ -543,7 +553,7 @@ async function* runTask(
         platformVersion: "1.4.0",
         networkConfiguration: {
           awsvpcConfiguration: {
-            subnets: JSON.parse(process.env.ECS_SUBNETS!),
+            subnets: ["subnet-086d451813d884dd0","subnet-0121bcb20501551bb","subnet-0a2629118cf16bb5b"], // FIXME: populate from ECS_SUBNETS 
             securityGroups: [process.env.ECS_SECURITY_GROUP!],
             assignPublicIp: "ENABLED",
           },
@@ -581,7 +591,7 @@ async function* runTask(
         const { events } = await logsClient.send(
           new GetLogEventsCommand({
             logGroupName: `/ecs/${process.env.ECS_CLUSTER}`,
-            logStreamName: `dbp-etl/dbp-etl/${taskId}`,
+            logStreamName: `dbp-etl/fargate/${taskId}`,
           })
         );
         const logs = events!.map((event) => event.message).join("\n");
@@ -592,7 +602,7 @@ async function* runTask(
           yield [status, logs];
         }
       } catch (e) {
-        console.error(e);
+        console.log('Error in runTask (598):', e);
         yield [status, ""];
       }
     }
@@ -718,6 +728,7 @@ async function uploadFiles(
           Bucket: process.env.UPLOAD_BUCKET,
           Key: `${uploadKey}${file.path}`,
           Body: file,
+          ACL: "bucket-owner-full-control"
         },
       });
       upload.on("httpUploadProgress", (progress) => {
@@ -730,8 +741,8 @@ async function uploadFiles(
       try {
         await upload.done();
       } catch (e) {
-        console.error(e);
-        throw new Error(`Error uploading ${file.name}`);
+        console.error(`Error uploading ${uploadKey}${file.path}`, e);
+        throw new Error(`Error uploading ${uploadKey}${file.path}`);
       }
       setUploadingMessage(`Uploading ${--remaining} files`);
     }))
@@ -741,6 +752,7 @@ async function uploadFiles(
 
   const path = findCommonPath(files);
   await updateMetadata(uploadKey, { path, user: await getUserEmail() }, true);
+  console.log("finished uploading. uploadKey:", uploadKey) // FIXME remove
   return uploadKey;
 }
 
@@ -760,13 +772,14 @@ async function uploadLptsFile(
     params: {
       Bucket: process.env.UPLOAD_BUCKET,
       Key: `${uploadKey}/lpts-dbp.xml`,
+      ACL: "bucket-owner-full-control",      
       Body: file,
     },
   });
   try {
     await upload.done();
   } catch (e) {
-    console.error(e);
+    console.log(`Error uploading ${file.name}`, e);
     throw new Error(`Error uploading ${file.name}`);
   }
 
@@ -848,7 +861,8 @@ async function runValidateLambda(
     const payload = JSON.parse(new TextDecoder("utf-8").decode(result.Payload));
     if (payload.errorMessage) return [payload.errorMessage];
     return payload;
-  } catch {
+  } catch (e) {
+    console.log('Error running validator (856):', e);
     return ["Error running validator"];
   }
 }
@@ -873,8 +887,8 @@ async function runPostvalidateLambda(filesetId: string): Promise<string> {
     if (payload.errorMessage) return payload.errorMessage;
     return payload;
   } catch (e) {
-    console.error(e);
-    return "error";
+    console.error("error invoking postvalidate lambda: (" + process.env.POSTVALIDATE_LAMBDA + ")", e);
+    return "error invoking postvalidate lambda: (" + process.env.POSTVALIDATE_LAMBDA + ")";
   }
 }
 
