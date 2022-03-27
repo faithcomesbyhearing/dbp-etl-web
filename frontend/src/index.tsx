@@ -587,13 +587,17 @@ async function* runTask(
     if (["PROVISIONING", "PENDING"].includes(status)) {
       yield [status, ""];
     } else {
+      console.log("logGroupName",`/ecs/${process.env.ECS_CLUSTER}`);
+      console.log("logStreamName:", `dbp-etl/dbp-etl/${taskId}`)  
       try {
         const { events } = await logsClient.send(
           new GetLogEventsCommand({
             logGroupName: `/ecs/${process.env.ECS_CLUSTER}`,
             logStreamName: `dbp-etl/dbp-etl/${taskId}`,
           })
+
         );
+      
         const logs = events!.map((event) => event.message).join("\n");
         if (logs.includes("EXECUTION FINISHED")) {
           yield ["STOPPED", logs];
