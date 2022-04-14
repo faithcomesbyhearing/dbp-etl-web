@@ -736,11 +736,11 @@ async function getArtifacts(uploadKey: string) {
   );
 }
 
-function getFilesWithoutStocknumberFile(files: FileWithPath[]): FileWithPath[] {
+function getFilesWithoutTempStocknumberFile(files: FileWithPath[]): FileWithPath[] {
   const filesFinal: FileWithPath[] = [];
 
   files.forEach((file: FileWithPath) => {
-    if (file.name !== STOCKNUMBER_FILE_NAME) {
+    if (!file.name.startsWith(".")) {
       filesFinal.push(file);
     }
   });
@@ -752,7 +752,7 @@ async function uploadFiles(
   inputFiles: FileWithPath[],
   setUploadingMessage: (uploadingMessage: string) => void
 ): Promise<string> {
-  const files = getFilesWithoutStocknumberFile(inputFiles);
+  const files = getFilesWithoutTempStocknumberFile(inputFiles);
   // %Y-%m-%d-%H-%M-%S
   const uploadKey = new Date()
     .toISOString()
