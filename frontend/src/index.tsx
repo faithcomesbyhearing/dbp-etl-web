@@ -418,8 +418,31 @@ function Upload() {
     }
   }
 
+  function getStocknumberFileFrom(acceptedFiles: FileWithPath[]): FileWithPath | null {
+    let stocknumberFile: FileWithPath | null = null;
+
+    acceptedFiles.forEach((file: FileWithPath) => {
+      if (file.name === 'stocknumber.txt') {
+        stocknumberFile = file;
+      }
+    });
+
+    return stocknumberFile;
+  }
+
+  function getStocknumberFromFile(stocknumberFile: FileWithPath): Promise<string | ArrayBuffer | null | undefined> {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onerror = reject;
+      reader.onload = () => {
+        resolve(reader.result);
+      }
+      reader.readAsText(stocknumberFile);
+    });
+  }
+
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
-    onDrop(acceptedFiles: FileWithPath[], fileRejections) {
+    async onDrop(acceptedFiles: FileWithPath[], fileRejections) {
       for (const rejection of fileRejections) {
         for (const error of rejection.errors) {
           console.error(error);
@@ -430,11 +453,17 @@ function Upload() {
         uploadLpts(acceptedFiles[0]);
       } else if (acceptedFiles.length > 0) {
         const commonPath = findCommonPath(acceptedFiles);
+        const stocknumberFile = getStocknumberFileFrom(acceptedFiles);
+        let stocknumberContent = null;
+        if (stocknumberFile !== null) {
+          stocknumberContent = await getStocknumberFromFile(stocknumberFile);
+        }
         setPrevalidate(commonPath);
         runPrevalidate(
           [commonPath],
           acceptedFiles.map((x) => x.name),
-          setValidations
+          setValidations,
+          stocknumberContent,
         );
         setFiles(acceptedFiles);
       } else {
@@ -826,7 +855,8 @@ const runPrevalidate = debounce(
   async (
     prefixes: string[],
     files: string[],
-    setValidations: (value: string[]) => void
+    setValidations: (value: string[]) => void,
+    stocknumbers: string | ArrayBuffer | null | undefined = null
   ) => {
     setValidations(["Validating..."]);
     const token = Math.random();
@@ -834,7 +864,7 @@ const runPrevalidate = debounce(
     const validations: string[] = [];
     await Promise.all(
       prefixes.map(async (prefix) => {
-        const newValidations = await runValidateLambda(prefix, files);
+        const newValidations = await runValidateLambda(prefix, files, stocknumbers);
         console.log({ lastPrevalidate, token });
         if (newValidations.length > 0) {
           validations.push(
@@ -853,13 +883,14 @@ const runPrevalidate = debounce(
 
 async function runValidateLambda(
   prefix: string,
-  files: string[]
+  files: string[],
+  stocknumbers: string | ArrayBuffer | null | undefined = null,
 ): Promise<string[]> {
   try {
     const result = await lambdaClient.send(
       new InvokeCommand({
         FunctionName: process.env.VALIDATE_LAMBDA,
-        Payload: new TextEncoder().encode(JSON.stringify({ prefix, files })),
+        Payload: new TextEncoder().encode(JSON.stringify({ prefix, files, stocknumbers })),
       })
     );
     const payload = JSON.parse(new TextDecoder("utf-8").decode(result.Payload));
