@@ -35,8 +35,6 @@ import { debounce } from "debounce";
 import bibleBrain from "./BibleBrain.svg";
 import pLimit from 'p-limit';
 
-const STOCKNUMBER_FILE_NAME = 'stocknumber.txt';
-
 render(<App />, document.getElementById("app"));
 
 function App() {
@@ -424,7 +422,7 @@ function Upload() {
     let stocknumberFile: FileWithPath | null = null;
 
     acceptedFiles.forEach((file: FileWithPath) => {
-      if (file.name === STOCKNUMBER_FILE_NAME) {
+      if (file.name === 'stocknumber.txt') {
         stocknumberFile = file;
       }
     });
@@ -736,23 +734,10 @@ async function getArtifacts(uploadKey: string) {
   );
 }
 
-function getFilesWithoutTempStocknumberFile(files: FileWithPath[]): FileWithPath[] {
-  const filesFinal: FileWithPath[] = [];
-
-  files.forEach((file: FileWithPath) => {
-    if (!file.name.startsWith(".")) {
-      filesFinal.push(file);
-    }
-  });
-
-  return filesFinal;
-}
-
 async function uploadFiles(
-  inputFiles: FileWithPath[],
+  files: FileWithPath[],
   setUploadingMessage: (uploadingMessage: string) => void
 ): Promise<string> {
-  const files = getFilesWithoutTempStocknumberFile(inputFiles);
   // %Y-%m-%d-%H-%M-%S
   const uploadKey = new Date()
     .toISOString()
