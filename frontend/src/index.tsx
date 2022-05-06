@@ -63,6 +63,8 @@ function App() {
                 {" | "}
                 <Link to="/postvalidate">Postvalidate</Link>
                 {" | "}
+                <Link to="/databasecheck">Database Check</Link>
+                {" | "}
                 <button onClick={() => Auth.signOut()}>Sign Out</button>
               </nav>
               <Switch>
@@ -71,6 +73,9 @@ function App() {
                 </Route>
                 <Route path="/postvalidate">
                   <Postvalidate />
+                </Route>
+                <Route path="/databasecheck">
+                  <DatabaseCheck />
                 </Route>
                 <Route
                   path="/retry/:uploadKey"
@@ -89,6 +94,35 @@ function App() {
   );
 }
 
+function returnIframe(output: string) {
+  return (
+    <iframe
+      srcDoc={output}
+      style={{ width: "100%" }}
+      scrolling={"no"}
+      onLoad={(e) => {
+        console.log(e.target);
+        e.target.style.height = `${e.target.contentWindow.document.body.scrollHeight + 20}px`;
+        e.target.style.width = `${e.target.contentWindow.document.body.scrollWidth + 20}px`;
+      }}
+    />
+  )
+}
+
+function DatabaseCheck() {
+  const [outputDatabaseCheck, setOutputDatabaseCheck] = useState("");
+  return (
+    <div>
+      <h2>Database Check</h2>
+      <button onClick={callDatabaseCheck(setOutputDatabaseCheck)}>
+        Run
+      </button>
+      <br />
+      {outputDatabaseCheck && returnIframe(outputDatabaseCheck)}
+    </div>
+  );
+}
+
 function Postvalidate() {
   const [postvalidate, setPostvalidate] = useState("");
   const [output, setOutput] = useState("");
@@ -104,18 +138,7 @@ function Postvalidate() {
         placeholder="Postvalidate"
       />
       <br />
-      {output && (
-        <iframe
-          srcDoc={output}
-          style={{ width: "100%" }}
-          scrolling={"no"}
-          onLoad={(e) => {
-            console.log(e.target);
-            e.target.style.height = `${e.target.contentWindow.document.body.scrollHeight + 20}px`;
-            e.target.style.width = `${e.target.contentWindow.document.body.scrollWidth + 20}px`;
-          }}
-        />
-      )}
+      {output && returnIframe(output)}
     </div>
   );
 }
@@ -910,6 +933,17 @@ const runPostvalidate = debounce(
   1000
 );
 
+const runDatabaseCheck = debounce(
+  async (setOutput: (output: string) => void) => {
+    const output = await runDatabaseCheckLambda();
+    setOutput(output);
+  },
+  1000,
+);
+
+const callDatabaseCheck = (setOutput: (output: string) => void) =>
+  () => runDatabaseCheck(setOutput);
+
 async function runPostvalidateLambda(filesetId: string): Promise<string> {
   try {
     const result = await lambdaClient.send(
@@ -924,6 +958,23 @@ async function runPostvalidateLambda(filesetId: string): Promise<string> {
   } catch (e) {
     console.error("error invoking postvalidate lambda: (" + process.env.POSTVALIDATE_LAMBDA + ")", e);
     return "error invoking postvalidate lambda: (" + process.env.POSTVALIDATE_LAMBDA + ")";
+  }
+}
+
+async function runDatabaseCheckLambda(): Promise<string> {
+  try {
+    console.log("It will run lambda function:", process.env.DATABASECHECK_LAMBDA);
+    const result = await lambdaClient.send(
+      new InvokeCommand({
+        FunctionName: process.env.DATABASECHECK_LAMBDA,
+      }),
+    );
+    const payload = JSON.parse(new TextDecoder("utf-8").decode(result.Payload));
+    if (payload.errorMessage) return payload.errorMessage;
+    return payload;
+  } catch (e) {
+    console.error("error invoking databasecheck lambda: (" + process.env.DATABASECHECK_LAMBDA + ")", e);
+    return "error invoking databasecheck lambda: (" + process.env.DATABASECHECK_LAMBDA + ")";
   }
 }
 
