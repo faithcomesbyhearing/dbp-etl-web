@@ -111,12 +111,22 @@ function returnIframe(output: string) {
 
 function DatabaseCheck() {
   const [outputDatabaseCheck, setOutputDatabaseCheck] = useState("");
+  const [isLoadingDatabaseCheck, setIsLoadingDatabaseCheck] = useState(false);
+
+  const callDatabaseCheck = async () : Promise<void> => {
+    setIsLoadingDatabaseCheck(true);
+    setOutputDatabaseCheck(await runDatabaseCheckLambda());
+    setIsLoadingDatabaseCheck(false);
+  };
+
   return (
     <div>
       <h2>Database Check</h2>
-      <button onClick={callDatabaseCheck(setOutputDatabaseCheck)}>
+      <button onClick={callDatabaseCheck} disabled={isLoadingDatabaseCheck}>
         Run
       </button>
+      {isLoadingDatabaseCheck ? <p> Loading .... </p> : null}
+      <br />
       <br />
       {outputDatabaseCheck && returnIframe(outputDatabaseCheck)}
     </div>
@@ -940,9 +950,6 @@ const runDatabaseCheck = debounce(
   },
   1000,
 );
-
-const callDatabaseCheck = (setOutput: (output: string) => void) =>
-  () => runDatabaseCheck(setOutput);
 
 async function runPostvalidateLambda(filesetId: string): Promise<string> {
   try {
