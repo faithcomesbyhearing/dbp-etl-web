@@ -266,6 +266,7 @@ function ArtifactFolder({ prefix, metadata }: { prefix: any; metadata: any }) {
         new GetLogEventsCommand({
           logGroupName: `/ecs/${process.env.ECS_CLUSTER}`,
           logStreamName: `dbp-etl/dbp-etl/${metadata.taskid}`,
+          startFromHead: true,
         })
       )
       .then((x) => x.events!.map((event) => event.message).join("\n"))
@@ -646,6 +647,7 @@ async function* runTask(
           new GetLogEventsCommand({
             logGroupName: `/ecs/${process.env.ECS_CLUSTER}`,
             logStreamName: `dbp-etl/dbp-etl/${taskId}`,
+            startFromHead: true,            
           })
 
         );
