@@ -32,7 +32,6 @@ import {
 } from "./aws";
 import { useAsync } from "./hooks";
 import { debounce } from "debounce";
-import bibleBrain from "./BibleBrain.svg";
 import pLimit from 'p-limit';
 
 render(<App />, document.getElementById("app"));
@@ -54,8 +53,8 @@ function App() {
         <MemoryRouter>
           <Suspense fallback={"Loading..."}>
             <div style={{ display: 'flex', flexDirection: 'column' }}>
-              <img src={bibleBrain} style={{ maxWidth: '20rem' }} />
-              <h3>DBP ETL Web v{process.env.VERSION}</h3>
+              <h1 style={{
+                textTransform: 'uppercase', color: '#aa182c', fontWeight: 300 }}>Bible Brain Uploader</h1>
               <nav>
                 <Link to={{ pathname: "/", key: `${Math.random()}` }}>Upload</Link>
                 {" | "}
@@ -111,12 +110,22 @@ function returnIframe(output: string) {
 
 function DatabaseCheck() {
   const [outputDatabaseCheck, setOutputDatabaseCheck] = useState("");
+  const [isLoadingDatabaseCheck, setIsLoadingDatabaseCheck] = useState(false);
+
+  const callDatabaseCheck = async () : Promise<void> => {
+    setIsLoadingDatabaseCheck(true);
+    setOutputDatabaseCheck(await runDatabaseCheckLambda());
+    setIsLoadingDatabaseCheck(false);
+  };
+
   return (
     <div>
       <h2>Database Check</h2>
-      <button onClick={callDatabaseCheck(setOutputDatabaseCheck)}>
+      <button onClick={callDatabaseCheck} disabled={isLoadingDatabaseCheck}>
         Run
       </button>
+      {isLoadingDatabaseCheck ? <p> Loading .... </p> : null}
+      <br />
       <br />
       {outputDatabaseCheck && returnIframe(outputDatabaseCheck)}
     </div>
@@ -942,9 +951,6 @@ const runDatabaseCheck = debounce(
   },
   1000,
 );
-
-const callDatabaseCheck = (setOutput: (output: string) => void) =>
-  () => runDatabaseCheck(setOutput);
 
 async function runPostvalidateLambda(filesetId: string): Promise<string> {
   try {
