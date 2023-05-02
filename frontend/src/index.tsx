@@ -32,7 +32,6 @@ import {
 } from "./aws";
 import { useAsync } from "./hooks";
 import { debounce } from "debounce";
-import bibleBrain from "./BibleBrain.svg";
 import pLimit from 'p-limit';
 
 render(<App />, document.getElementById("app"));
@@ -54,8 +53,8 @@ function App() {
         <MemoryRouter>
           <Suspense fallback={"Loading..."}>
             <div style={{ display: 'flex', flexDirection: 'column' }}>
-              <img src={bibleBrain} style={{ maxWidth: '20rem' }} />
-              <h3>DBP ETL Web v{process.env.VERSION}</h3>
+              <h1 style={{
+                textTransform: 'uppercase', color: '#aa182c', fontWeight: 300 }}>Bible Brain Uploader</h1>
               <nav>
                 <Link to={{ pathname: "/", key: `${Math.random()}` }}>Upload</Link>
                 {" | "}
@@ -276,6 +275,7 @@ function ArtifactFolder({ prefix, metadata }: { prefix: any; metadata: any }) {
         new GetLogEventsCommand({
           logGroupName: `/ecs/${process.env.ECS_CLUSTER}`,
           logStreamName: `dbp-etl/dbp-etl/${metadata.taskid}`,
+          startFromHead: true,
         })
       )
       .then((x) => x.events!.map((event) => event.message).join("\n"))
@@ -656,6 +656,7 @@ async function* runTask(
           new GetLogEventsCommand({
             logGroupName: `/ecs/${process.env.ECS_CLUSTER}`,
             logStreamName: `dbp-etl/dbp-etl/${taskId}`,
+            startFromHead: true,            
           })
 
         );
